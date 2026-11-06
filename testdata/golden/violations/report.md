@@ -2,7 +2,7 @@
 
 > Monitoring and reporting aid. Not legal advice. Not an official OCC form.
 
-**Overall: FAIL** (4 fail, 0 warning, 0 pass)
+**Overall: FAIL** (3 fail, 1 warning, 0 pass)
 
 - Generated: 2027-02-01T21:30:00Z by reservelint 0.1.0-dev
 - Snapshot as of: 2027-02-01T21:00:00Z
@@ -12,14 +12,16 @@
 
 | Rule | Check | Status | Observed | Requirement | Rule verified |
 |---|---|---|---|---|---|
-| RW-COV-001 | coverage | FAIL | 95% | at least 100% | NO |
+| RW-COV-001 | coverage | WARNING (capped from FAIL) | 95% | at least 100% | NO |
 | RW-LIQ-001 | liquidity_floor | FAIL | 2% | at least 5% | yes |
 | RW-CON-001 | counterparty_concentration | FAIL | 55% | at most 40% | yes |
 | RW-RED-001 | redemption_timing | FAIL | 8 business days | at most 2 business days | yes |
 
-### RW-COV-001: coverage (FAIL)
+### RW-COV-001: coverage - WARNING (capped from FAIL)
 
 Total reserves must be at least the circulating supply.
+
+> The check result was **FAIL**, but this rule is unverified, so it is capped at WARNING and does not fail the run.
 
 - Observed: 95%; required at least 100%
 - Citation: UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).
@@ -30,7 +32,7 @@ Total reserves must be at least the circulating supply.
 - supply_as_of: 2027-02-01T21:00:00Z
 - total_reserves: 95000000
 
-### RW-LIQ-001: liquidity_floor (FAIL)
+### RW-LIQ-001: liquidity_floor - FAIL
 
 At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.
 
@@ -41,7 +43,7 @@ At least a minimum share of reserve assets must be held as demand deposits (or o
 - immediately_available: 1900000
 - total_reserves: 95000000
 
-### RW-CON-001: counterparty_concentration (FAIL)
+### RW-CON-001: counterparty_concentration - FAIL
 
 Exposure to any one counterparty may not exceed a maximum share of reserve assets.
 
@@ -59,7 +61,7 @@ Exposure to any one counterparty may not exceed a maximum share of reserve asset
 - top_counterparty_amount: 52250000
 - total_reserves: 95000000
 
-### RW-RED-001: redemption_timing (FAIL)
+### RW-RED-001: redemption_timing - FAIL
 
 A timely redemption may not exceed a maximum number of business days following the redemption request.
 
@@ -134,7 +136,7 @@ Duplicate rows in `testdata/vectors/violations/reserves.csv` (counted once; posi
 
 ## Caveats
 
-- Rule RW-COV-001 (coverage) is not verified against the rule text; its threshold is a placeholder and its result is indicative only.
+- Rule RW-COV-001 (coverage) is not verified against the rule text. The check FAILED, but because the rule is unverified it is reported as WARNING and does not set a failing exit code.
 - Holiday calendar "US Federal holidays" is not verified against an official schedule; business-day counts depend on it.
 
 ---

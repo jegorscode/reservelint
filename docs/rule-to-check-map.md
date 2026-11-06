@@ -47,6 +47,13 @@ over-report.
 - Anomalies (transfer before clock start, completed with no transfer time, request after
   `as_of`) are listed on the row; a completed row with no transfer time is measured to `as_of`.
 
+## Unverified rules
+
+A rule with `verified: false` is informational. If its check fails, the finding's status is
+capped at WARNING (`uncapped_status: fail` in the JSON and CSV, "capped from FAIL" in the
+Markdown), the exit code is not affected, and a caveat names the rule. Promote a rule by setting
+`verified: true` after comparing it with the rule text.
+
 ## Comparison semantics
 
 Pass/fail compares exact decimals by cross-multiplication (for example

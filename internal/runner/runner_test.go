@@ -143,7 +143,8 @@ func TestCleanDataPassesWithCaveats(t *testing.T) {
 func TestViolationsFail(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("violations"))
-	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 4 {
+	// Three verified rules fail; the unverified coverage rule is capped at warning.
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 3 || rep.Counts.Warning != 1 {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
 	if rep.Inputs[0].DuplicateCount() != 1 || rep.Inputs[0].RowsRead != 16 || rep.Inputs[0].RowsUsed != 15 {
@@ -151,6 +152,35 @@ func TestViolationsFail(t *testing.T) {
 	}
 	if rep.Redemption == nil || rep.Redemption.Summary.Breach < 2 || len(rep.Redemption.Items) == 0 {
 		t.Errorf("redemption section: %+v", rep.Redemption)
+	}
+}
+
+func TestUnverifiedRuleFailureIsCappedAtWarning(t *testing.T) {
+	inRepoRoot(t)
+	coverageRules := func(verified string) string {
+		return writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n  - id: T-COV\n    check: coverage\n    description: d\n    source: s\n    verified: "+verified+"\n    parameters:\n      min_coverage_ratio: 1.0\n")
+	}
+	opts := vectorOpts("violations") // reserves are 95% of supply, so the check itself fails
+	opts.RulesPath = coverageRules("false")
+	rep := run(t, opts)
+	f := rep.Findings[0]
+	if f.Status != "warning" || f.UncappedStatus != "fail" || rep.Status != report.StatusWarning || rep.ExitCode != 0 {
+		t.Fatalf("finding %s/%s, overall %s exit %d", f.Status, f.UncappedStatus, rep.Status, rep.ExitCode)
+	}
+	if !strings.Contains(strings.Join(rep.Caveats, "\n"), "reported as WARNING") {
+		t.Errorf("caveats: %v", rep.Caveats)
+	}
+	if md := string(report.Markdown(rep)); !strings.Contains(md, "WARNING (capped from FAIL)") {
+		t.Error("markdown should show the cap")
+	}
+	if csvData, _ := report.FindingsCSV(rep); !strings.Contains(string(csvData), ",fail\n") {
+		t.Error("csv should record the uncapped status")
+	}
+
+	opts.RulesPath = coverageRules("true") // once promoted to verified, the same failure fails the run
+	rep = run(t, opts)
+	if rep.Findings[0].Status != "fail" || rep.Findings[0].UncappedStatus != "" || rep.Status != report.StatusFail || rep.ExitCode != 1 {
+		t.Fatalf("verified rule: %s overall %s exit %d", rep.Findings[0].Status, rep.Status, rep.ExitCode)
 	}
 }
 

@@ -38,12 +38,12 @@
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "1e48062db22602337e08147943867a9d4b444a4b363099db7a6f6aeaac6bff69"
+      "sha256": "ed194024055a8a333a57f7d2319ccb528269c97b2f447becf0bcd512c70430bf"
     },
     {
       "role": "findings.csv",
       "path": "findings.csv",
-      "sha256": "58683d8ef4c5f65ab4ae10a5ad0b4318a4112dc19c0ae5fb6340588f91e58fca"
+      "sha256": "612c15ef06eea9f6f8aef3a1c0cc12439de6e40c35840b3f0cdad5e59eca6681"
     },
     {
       "role": "report.json",

@@ -45,6 +45,13 @@ func formatValue(check string, d decimal.Decimal) string {
 	return d.Mul(decimal.NewFromInt(100)).Round(4).String() + "%"
 }
 
+func statusLabel(f Finding) string {
+	if f.UncappedStatus != "" {
+		return strings.ToUpper(f.Status) + " (capped from " + strings.ToUpper(f.UncappedStatus) + ")"
+	}
+	return strings.ToUpper(f.Status)
+}
+
 func comparatorWords(c string) string {
 	if c == ">=" {
 		return "at least"
@@ -76,12 +83,15 @@ func Markdown(r *Report) []byte {
 
 	w("## Findings\n\n| Rule | Check | Status | Observed | Requirement | Rule verified |\n|---|---|---|---|---|---|\n")
 	for _, f := range r.Findings {
-		w("| %s | %s | %s | %s | %s %s | %s |\n", cell(f.RuleID), cell(f.Check), strings.ToUpper(f.Status),
+		w("| %s | %s | %s | %s | %s %s | %s |\n", cell(f.RuleID), cell(f.Check), statusLabel(f),
 			cell(formatValue(f.Check, f.Observed)), comparatorWords(f.Comparator), cell(formatValue(f.Check, f.Threshold)), yesNo(f.RuleVerified))
 	}
 	b.WriteString("\n")
 	for _, f := range r.Findings {
-		w("### %s: %s (%s)\n\n%s\n\n", f.RuleID, f.Check, strings.ToUpper(f.Status), f.Description)
+		w("### %s: %s - %s\n\n%s\n\n", f.RuleID, f.Check, statusLabel(f), f.Description)
+		if f.UncappedStatus != "" {
+			w("> The check result was **%s**, but this rule is unverified, so it is capped at WARNING and does not fail the run.\n\n", strings.ToUpper(f.UncappedStatus))
+		}
 		w("- Observed: %s; required %s %s\n", formatValue(f.Check, f.Observed), comparatorWords(f.Comparator), formatValue(f.Check, f.Threshold))
 		w("- Citation: %s\n", f.Citation)
 		w("- Rule verified: %s\n", yesNo(f.RuleVerified))

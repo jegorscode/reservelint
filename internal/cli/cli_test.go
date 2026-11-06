@@ -80,7 +80,7 @@ func TestCheckViolationsExitsOne(t *testing.T) {
 	dir := t.TempDir()
 	args := append([]string{"check", "--out", dir}, vec("violations")...)
 	code, out, errOut := run(args...)
-	if code != 1 || !strings.HasPrefix(out, "FAIL: 4 fail") || errOut != "" {
+	if code != 1 || !strings.HasPrefix(out, "FAIL: 3 fail, 1 warning, 0 pass") || errOut != "" {
 		t.Fatalf("exit %d stdout %q stderr %q", code, out, errOut)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "report.md")); err != nil {

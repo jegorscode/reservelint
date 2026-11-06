@@ -30,13 +30,13 @@ type Paths struct {
 func FindingsCSV(r *Report) ([]byte, error) {
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
-	header := []string{"rule_id", "check", "status", "observed", "comparator", "threshold", "rule_verified", "citation", "description"}
+	header := []string{"rule_id", "check", "status", "observed", "comparator", "threshold", "rule_verified", "citation", "description", "uncapped_status"}
 	if err := w.Write(header); err != nil {
 		return nil, err
 	}
 	for _, f := range r.Findings {
 		row := []string{f.RuleID, f.Check, f.Status, f.Observed.String(), f.Comparator, f.Threshold.String(),
-			strconv.FormatBool(f.RuleVerified), f.Citation, f.Description}
+			strconv.FormatBool(f.RuleVerified), f.Citation, f.Description, f.UncappedStatus}
 		if err := w.Write(row); err != nil {
 			return nil, err
 		}

@@ -17,7 +17,7 @@
 | RW-CON-001 | counterparty_concentration | PASS | 21.7011% | at most 40% | yes |
 | RW-RED-001 | redemption_timing | PASS | 1 business days | at most 2 business days | yes |
 
-### RW-COV-001: coverage (PASS)
+### RW-COV-001: coverage - PASS
 
 Total reserves must be at least the circulating supply.
 
@@ -30,7 +30,7 @@ Total reserves must be at least the circulating supply.
 - supply_as_of: 2027-02-01T21:00:00Z
 - total_reserves: 102000000
 
-### RW-LIQ-001: liquidity_floor (PASS)
+### RW-LIQ-001: liquidity_floor - PASS
 
 At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.
 
@@ -41,7 +41,7 @@ At least a minimum share of reserve assets must be held as demand deposits (or o
 - immediately_available: 20399999.98
 - total_reserves: 102000000
 
-### RW-CON-001: counterparty_concentration (PASS)
+### RW-CON-001: counterparty_concentration - PASS
 
 Exposure to any one counterparty may not exceed a maximum share of reserve assets.
 
@@ -59,7 +59,7 @@ Exposure to any one counterparty may not exceed a maximum share of reserve asset
 - top_counterparty_amount: 22135091.86
 - total_reserves: 102000000
 
-### RW-RED-001: redemption_timing (PASS)
+### RW-RED-001: redemption_timing - PASS
 
 A timely redemption may not exceed a maximum number of business days following the redemption request.
 

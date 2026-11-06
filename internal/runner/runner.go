@@ -211,8 +211,13 @@ func findingView(f engine.Finding, rule rules.Rule) report.Finding {
 	if details == nil {
 		details = map[string]any{}
 	}
+	status, uncapped := f.Status(), ""
+	if status == "fail" && !f.RuleVerified {
+		// Unverified rules inform but never break a pipeline until promoted to verified.
+		status, uncapped = "warning", "fail"
+	}
 	return report.Finding{
-		RuleID: f.RuleID, Check: f.Check, Description: f.Description, Status: f.Status(),
+		RuleID: f.RuleID, Check: f.Check, Description: f.Description, Status: status, UncappedStatus: uncapped,
 		Observed: f.Observed, Comparator: string(f.Comparator), Threshold: f.Threshold,
 		Citation: f.Citation, RuleVerified: f.RuleVerified, RuleNotes: strings.Join(strings.Fields(rule.Notes), " "),
 		Details: details,
@@ -267,7 +272,10 @@ func caveats(rep *report.Report) []string {
 		out = append(out, fmt.Sprintf("PARTIAL RUN: %d invalid row(s) were excluded under --allow-invalid-rows; results cover valid rows only.", n))
 	}
 	for _, f := range rep.Findings {
-		if !f.RuleVerified {
+		switch {
+		case !f.RuleVerified && f.UncappedStatus == "fail":
+			out = append(out, fmt.Sprintf("Rule %s (%s) is not verified against the rule text. The check FAILED, but because the rule is unverified it is reported as WARNING and does not set a failing exit code.", f.RuleID, f.Check))
+		case !f.RuleVerified:
 			out = append(out, fmt.Sprintf("Rule %s (%s) is not verified against the rule text; its threshold is a placeholder and its result is indicative only.", f.RuleID, f.Check))
 		}
 	}

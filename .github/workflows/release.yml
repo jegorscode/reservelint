@@ -1,0 +1,114 @@
+name: release
+
+# Pushing a tag like v1.2.3 (or v1.2.3-rc.1) tests the code, builds static binaries and
+# attaches them, with SHA-256 checksums, to a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: tag looks like a version
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "bad tag: $GITHUB_REF_NAME"; exit 1; }
+      - run: go vet ./...
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: windows, goarch: amd64 }
+    env:
+      CGO_ENABLED: "0"
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          EXT=""; [ "$GOOS" = windows ] && EXT=".exe"
+          NAME="reservelint_${VERSION}_${GOOS}_${GOARCH}"
+          mkdir -p "dist/$NAME"
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/jegorscode/reservelint/internal/meta.Version=${VERSION}" \
+            -o "dist/$NAME/reservelint${EXT}" ./cmd/reservelint
+          cp README.md "dist/$NAME/"
+          cp -r docs "dist/$NAME/docs"
+          mkdir -p "dist/$NAME/rules" "dist/$NAME/config"
+          cp rules/rules.yaml "dist/$NAME/rules/"
+          cp config/holidays.yaml "dist/$NAME/config/"
+          cd dist
+          if [ "$GOOS" = windows ]; then zip -qr "$NAME.zip" "$NAME"; else tar -czf "$NAME.tar.gz" "$NAME"; fi
+          rm -rf "$NAME"
+          ls -l
+
+      # The linux/amd64 binary runs on this runner: check version, exit codes and output.
+      - name: smoke test
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar -xzf "dist/reservelint_${VERSION}_linux_amd64.tar.gz" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/reservelint_${VERSION}_linux_amd64"
+          ./reservelint --version | grep -F "$VERSION"
+          ./reservelint generate-synthetic --out data >/dev/null
+          set +e
+          ./reservelint check --reserves data/clean/reserves.csv --supply data/clean/supply.csv --redemptions data/clean/redemptions.csv --out out-clean >/dev/null
+          clean=$?
+          ./reservelint check --reserves data/violations/reserves.csv --supply data/violations/supply.csv --redemptions data/violations/redemptions.csv --out out-bad >/dev/null
+          bad=$?
+          ./reservelint check --reserves missing.csv --supply data/clean/supply.csv --redemptions data/clean/redemptions.csv --out out-err >/dev/null 2>&1
+          err=$?
+          echo "exit codes: clean=$clean violations=$bad input-error=$err"
+          [ "$clean" = 0 ] && [ "$bad" = 1 ] && [ "$err" = 2 ]
+          grep -q "Not legal advice" out-clean/report.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+      - name: checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRE=""; [[ "$GITHUB_REF_NAME" == *-* ]] && PRE="--prerelease"
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes $PRE \
+            --title "reservelint ${GITHUB_REF_NAME}" \
+            --notes "Monitoring and reporting aid. Not legal advice. Not an official OCC form. Verify downloads against SHA256SUMS.txt."

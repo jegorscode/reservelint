@@ -38,17 +38,17 @@
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "e49789c46f6bd7dee084b97cb8f6bd39e87110b2c62b3c7565fad2fb7df3e4b1"
+      "sha256": "c6ee89885b7dc772434cb91256c7d54afb3c1c9ff00b6cba5aacb544e09cde8e"
     },
     {
       "role": "findings.csv",
       "path": "findings.csv",
-      "sha256": "5fb29802f9d27e5b07755a80fac172ab35ef6fd5a886a5361af33a1ae308738c"
+      "sha256": "be3193fd14a9f641781fd2ff72ba79db6f1f8d9579385b7c7cd356eeb5ea1d7c"
     },
     {
       "role": "report.json",
       "path": "report.json",
-      "sha256": "66a116dac7fd79805cd76f7b1f4b6e695171fa667619ca2c46e4a6910929f849"
+      "sha256": "e184e2d54997d7e755dca57e8a66481ca881f50ad133d8d349e34e52a168c97d"
     }
   ],
   "result": {
@@ -57,15 +57,16 @@
     "partial_run": false,
     "counts": {
       "pass": 0,
-      "warning": 0,
-      "fail": 4
+      "warning": 1,
+      "fail": 3
     },
     "findings": [
       {
         "rule_id": "RW-COV-001",
         "check": "coverage",
         "description": "Total reserves must be at least the circulating supply.",
-        "status": "fail",
+        "status": "warning",
+        "uncapped_status": "fail",
         "observed": "0.95",
         "comparator": ">=",
         "threshold": "1",

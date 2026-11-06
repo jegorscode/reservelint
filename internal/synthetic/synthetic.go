@@ -115,10 +115,9 @@ func buildRedemptions(r *rand.Rand, violations bool) []model.RedemptionRow {
 	rows := make([]model.RedemptionRow, 0, nRedemptions)
 	for i := 0; i < nRedemptions; i++ {
 		request := AsOf.Add(-days(uniform(r, 0.2, 30)))
+		// Causality: onboarding strictly precedes the request, which strictly precedes any
+		// transfer (delays below are at least an hour, onboarding at least a day earlier).
 		onboarded := request.Add(-days(uniform(r, 1, 400)))
-		if i%9 == 0 { // new customer, onboarded shortly after the request
-			onboarded = request.Add(time.Duration(uniform(r, 1, 6) * float64(time.Hour)))
-		}
 		delay := days(uniform(r, 0.05, 1.2))
 		stuck := false
 		if violations && i%7 == 3 {
@@ -253,7 +252,7 @@ var manifestNotes = map[string][]string{
 		"Several redemptions took many days; two old requests have no transfer yet.",
 		"One reserve row appears twice (duplicate detection).",
 	},
-	"both": {"Some customers are onboarded after the request time (clock-start ambiguity)."},
+	"both": {"Onboarding precedes every request, and every transfer follows its request."},
 }
 
 // Generate writes both scenarios plus manifest.json under outDir and returns the paths written.

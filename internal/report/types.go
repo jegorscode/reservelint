@@ -115,17 +115,20 @@ type InvalidRow struct {
 
 // Finding is one rule's result.
 type Finding struct {
-	RuleID       string          `json:"rule_id"`
-	Check        string          `json:"check"`
-	Description  string          `json:"description"`
-	Status       string          `json:"status"` // pass, warning, fail
-	Observed     decimal.Decimal `json:"observed"`
-	Comparator   string          `json:"comparator"`
-	Threshold    decimal.Decimal `json:"threshold"`
-	Citation     string          `json:"citation"`
-	RuleVerified bool            `json:"rule_verified"`
-	RuleNotes    string          `json:"rule_notes,omitempty"`
-	Details      map[string]any  `json:"details"`
+	RuleID      string `json:"rule_id"`
+	Check       string `json:"check"`
+	Description string `json:"description"`
+	Status      string `json:"status"` // pass, warning, fail
+	// UncappedStatus is set when the check failed but the rule is unverified, so Status was
+	// capped at "warning". It holds the status the check actually produced ("fail").
+	UncappedStatus string          `json:"uncapped_status,omitempty"`
+	Observed       decimal.Decimal `json:"observed"`
+	Comparator     string          `json:"comparator"`
+	Threshold      decimal.Decimal `json:"threshold"`
+	Citation       string          `json:"citation"`
+	RuleVerified   bool            `json:"rule_verified"`
+	RuleNotes      string          `json:"rule_notes,omitempty"`
+	Details        map[string]any  `json:"details"`
 }
 
 // Redemption is the redemption-timing section: summary totals plus every request that is not

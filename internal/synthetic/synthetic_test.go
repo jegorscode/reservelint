@@ -175,6 +175,27 @@ func TestManifestAndErrors(t *testing.T) {
 	}
 }
 
+func TestCausalityOnboardingThenRequestThenTransfer(t *testing.T) {
+	for seed := int64(0); seed < 30; seed++ {
+		for _, name := range []string{synthetic.Clean, synthetic.Violations} {
+			d, _ := synthetic.Build(name, seed)
+			for i, r := range d.Redemptions {
+				if r.OnboardedTS == nil || !r.OnboardedTS.Before(r.RequestTS) {
+					t.Fatalf("%s seed %d row %d: onboarding does not strictly precede the request", name, seed, i)
+				}
+				if r.RequestTS.After(synthetic.AsOf) {
+					t.Fatalf("%s seed %d row %d: request is after the snapshot", name, seed, i)
+				}
+				if tr := r.TransferInitiatedTS; tr != nil {
+					if !tr.After(r.RequestTS) || !tr.After(*r.OnboardedTS) || tr.After(synthetic.AsOf) {
+						t.Fatalf("%s seed %d row %d: transfer %v breaks causality", name, seed, i, tr)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestRedemptionOrderingIsSane(t *testing.T) {
 	d, _ := synthetic.Build(synthetic.Violations, 5)
 	for i, r := range d.Redemptions {

@@ -9,8 +9,8 @@
   "partial_run": false,
   "counts": {
     "pass": 0,
-    "warning": 0,
-    "fail": 4
+    "warning": 1,
+    "fail": 3
   },
   "options": {
     "allow_invalid_rows": false
@@ -71,7 +71,8 @@
       "rule_id": "RW-COV-001",
       "check": "coverage",
       "description": "Total reserves must be at least the circulating supply.",
-      "status": "fail",
+      "status": "warning",
+      "uncapped_status": "fail",
       "observed": "0.95",
       "comparator": ">=",
       "threshold": "1",
@@ -376,7 +377,7 @@
     }
   ],
   "caveats": [
-    "Rule RW-COV-001 (coverage) is not verified against the rule text; its threshold is a placeholder and its result is indicative only.",
+    "Rule RW-COV-001 (coverage) is not verified against the rule text. The check FAILED, but because the rule is unverified it is reported as WARNING and does not set a failing exit code.",
     "Holiday calendar \"US Federal holidays\" is not verified against an official schedule; business-day counts depend on it."
   ]
 }
