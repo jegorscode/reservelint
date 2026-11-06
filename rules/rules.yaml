@@ -1,0 +1,75 @@
+# reservewatch rules.
+#
+# EVERY rule here is UNVERIFIED. Numbers below are PLACEHOLDERS taken from law-firm
+# summaries, not from the rule text. Do not rely on them. Each rule flips to
+# `verified: true` only after the exact text of 12 CFR Part 15 (and the GENIUS Act
+# where relevant) has been compared and the citation filled in.
+#
+# Fields: id, check, description, parameters, source, verified, notes.
+# `null` parameters mean "unknown; waiting on rule text or a decision".
+schema_version: 1
+
+rules:
+  - id: RW-COV-001
+    check: coverage
+    description: Total reserves must be at least the circulating supply.
+    parameters:
+      min_coverage_ratio: 1.0 # placeholder
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted)."
+    verified: false
+    notes: Confirm whether the ratio is on face value, market value, or another measure.
+
+  - id: RW-LIQ-001
+    check: liquidity_floor
+    description: Share of reserves that are immediately available must meet a minimum.
+    parameters:
+      min_immediately_available_share: 0.05 # placeholder (law-firm summary)
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted)."
+    verified: false
+    notes: Confirm which asset types count as immediately available.
+
+  - id: RW-CON-001
+    check: counterparty_concentration
+    description: No single counterparty may hold more than a maximum share of reserves.
+    parameters:
+      max_counterparty_share: 0.40 # placeholder (law-firm summary)
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted)."
+    verified: false
+    notes: Confirm denominator (total reserves vs. supply) and how affiliates are grouped.
+
+  - id: RW-RED-001
+    check: redemption_timing
+    description: Redemption requests must be fulfilled within a maximum number of business days.
+    parameters:
+      max_business_days: 2 # placeholder (law-firm summary)
+      clock_start: null # OPEN QUESTION: request_ts, onboarded_ts, or later of the two?
+      clock_end: null # OPEN QUESTION: transfer_initiated_ts or settlement?
+      near_breach_margin_business_days: null # tool setting, owner to decide
+      holiday_calendar: null # to be defined in Phase 3
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 redemption section (text to be pasted)."
+    verified: false
+    notes: Clock start and end events must come from the rule text, not from assumption.
+
+  - id: RW-STR-001
+    check: null # not implemented in MVP
+    description: Reserve stress testing requirement.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 (text to be pasted)."
+    verified: false
+    notes: Tracked only. No check planned until the text is reviewed.
+
+  - id: RW-REP-001
+    check: null # not implemented in MVP
+    description: Weekly reserve reporting.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
+    verified: false
+    notes: Form name, content and cadence unconfirmed.
+
+  - id: RW-REP-002
+    check: null # not implemented in MVP
+    description: Quarterly reporting.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
+    verified: false
+    notes: Form name, content and cadence unconfirmed.
