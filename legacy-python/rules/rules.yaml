@@ -1,0 +1,94 @@
+# reservewatch rules.
+#
+# `verified: true` means the owner confirmed the figure against rule text they pasted
+# (see each rule's `source` and `notes`). `verified: false` means placeholder, do not rely
+# on it. Reports show the verified flag next to every finding.
+#
+# Fields: id, check, description, parameters, source, verified, notes.
+# `null` parameters mean "unknown; waiting on rule text or a decision".
+schema_version: 1
+
+rules:
+  - id: RW-COV-001
+    check: coverage
+    description: Total reserves must be at least the circulating supply.
+    parameters:
+      min_coverage_ratio: 1.0 # placeholder
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted)."
+    verified: false
+    notes: Confirm whether the ratio is on face value, market value, or another measure.
+
+  - id: RW-LIQ-001
+    check: liquidity_floor
+    description: >-
+      At least a minimum share of reserve assets must be held as demand deposits (or other
+      deposits withdrawable on request at any time), share accounts payable on demand, or
+      money in an account with a Federal Reserve Bank.
+    parameters:
+      min_immediately_available_share: 0.05
+    source: "OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble)."
+    verified: true
+    notes: >-
+      Figure taken from preamble text, not the codified regulation text; re-check against the
+      codified text. The input flag is_immediately_available must be set only for assets in the
+      categories above. The weekly-liquidity (5 business days) requirement was dropped in the
+      final rule, so none is modelled.
+
+  - id: RW-CON-001
+    check: counterparty_concentration
+    description: Exposure to any one counterparty may not exceed a maximum share of reserve assets.
+    parameters:
+      max_counterparty_share: 0.40
+    source: "OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble)."
+    verified: true
+    notes: >-
+      The rule is "subject to certain exceptions" that are NOT modelled; the check applies the
+      limit to every counterparty, so it can over-report. Exposure is measured as the sum of
+      reserve rows per counterparty over total reserve assets. Per-institution holdings and
+      weighted average maturity limits were dropped from the final rule.
+
+  - id: RW-RED-001
+    check: redemption_timing
+    description: >-
+      A timely redemption may not exceed a maximum number of business days following the
+      redemption request.
+    parameters:
+      max_business_days: 2
+      # Clock start: valid order received AND conditions to redeem satisfied (e.g. onboarding).
+      clock_start: max(request_ts, onboarded_ts)
+      # Clock end: issuer has fully processed and initiated the outgoing transfer.
+      clock_end: transfer_initiated_ts
+      business_day: weekdays that are not Federal holidays
+      timezone: America/New_York
+      near_breach_margin_business_days: null # tool setting, owner to decide
+      holiday_calendar: null # to be defined in Phase 3
+    source: "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1) (as described in the final rule preamble)."
+    verified: true
+    notes: >-
+      Figures and definitions taken from preamble text, not the codified regulation text.
+      "Business day" means any day other than a Saturday, Sunday, or Federal holiday.
+      Counting convention (whether day 0 is the start date) still to confirm in Phase 3.
+
+  - id: RW-STR-001
+    check: null # not implemented in MVP
+    description: Reserve stress testing requirement.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 (text to be pasted)."
+    verified: false
+    notes: Tracked only. No check planned until the text is reviewed.
+
+  - id: RW-REP-001
+    check: null # not implemented in MVP
+    description: Weekly reserve reporting.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
+    verified: false
+    notes: Form name, content and cadence unconfirmed.
+
+  - id: RW-REP-002
+    check: null # not implemented in MVP
+    description: Quarterly reporting.
+    parameters: {}
+    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
+    verified: false
+    notes: Form name, content and cadence unconfirmed.

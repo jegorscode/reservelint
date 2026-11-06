@@ -1,0 +1,287 @@
+{
+  "seed": 42,
+  "scenarios": {
+    "clean": {
+      "reserve_rows_read": 15,
+      "reserve_duplicates": 0,
+      "reserve_keys": [
+        "28b2bcb7c748ecf622889ada6f2b5f29fb7ddc063de65011ccc08da51032b653",
+        "421ba56995ecd8ce21ee39cb8564d53eb3a862ec2a709f295fb5ba7ea4232c80",
+        "d8b55816e57e57f48c8f546062483ff6418b2e7b99f8997d1dd7a06a402a8340",
+        "b4c2a44f0327b75626bb0f81672e1154d431694cd597a4214ae5a55c4d01a65e",
+        "33d87a4d950cfbe97336707bdd99d2a97ca257d18d064e0c510625bef585aff4",
+        "2aad3c65acd2d17a530f7e3cd0f296149a9e574c283171df5afbc08664c25851",
+        "1fdba947268b320b03c0902cfb7adf1f8fb6c4d03ee450f78da3ae7ece34ca5a",
+        "213eff480216c16ee6ca1f085e144900234f60af8334aeacd8bc9d08ae20582e",
+        "3e1114e069289667d168caf070465b309da4fd9e3b466f0a48f05db89c6baba2",
+        "71dae1b0692a66e1e1818d221cc33a1d00971fd1ea9b335ef95f871754dabe71",
+        "40cd711a0b7242bdeeccc3adcf73118c19b5e8e476ed6d3ff369f37e02e0623c",
+        "f5c80ad564afe7098bf2de853e14c7dfc4124fb693eb1ec7cb1817c5201c3632",
+        "286913e44c579b6dfb208520b8c07d192baa6df783e839418ec976a6bd8f1edb",
+        "dee71c4aaf5b72050a914ebe0ad56671e80c9691a6ecad8a733e45419a372431",
+        "9528c0ba59101e5ba5a8a35994e3566c1a3bacca9399349ccfc71722485d56a9"
+      ],
+      "supply_keys": [
+        "a41a42e9289a554e6de88214a20117361eafaccd97523ad48ed8aa33956bf522"
+      ],
+      "redemption_keys": [
+        "fd4f77ada7e19dea27ee7b55312899dfcb308e524ccd88addfd6434b06d001ec",
+        "d1fa70b7859664c2222e762ad92297534fa810cfab0efbbdc545ad2cc9139610",
+        "2481f5b62b44a512fcc2f7a6ac4f9035da5fafa7bd10607336dd4a530d3710e2",
+        "dff98472d16bd7f27bd6460095eed8e41d3f94f269c94b711865cc075ec76f14",
+        "2f532a6eb86d2dc307aa8a956eb1e331760034806ac9f2fbb1f39d2d464c6443",
+        "ea352a923774c25c95c877302994a88fa5f62cb5fd587c01297af71023e09682",
+        "a83d2c00eadf019d8a36815cb2b234db7cc9b5b0adec3d136a8a407bc3829b38",
+        "3437e13f8ebd2871a134f6812a99c5c4194e7c6da8d68ddb53f3f7cb5cfd1434",
+        "e7141eb2d2bd80df5a58a5b43dc546a3a92e7ffb9d4e3f39b1d3c443032d4831",
+        "311549615d52e165bebedc1063e675f5bade6a0fdeac0c6639e6296eaeb0dae4",
+        "d1b87f8bb29b607a477857ae878c0082ff6e2b3cc0194e2f3ee6546828392600",
+        "d094c63591fa899ddc978693538f98d2840f262291cdb2a5eb0c408753704653",
+        "0c9ad60304d14f9e58321150358641fbf6e60305aff3826344e406746cbb3d34",
+        "9368b9d7249ae2274d3e579078327e755a336cc1dde01b6f8e349dfebf31d17a",
+        "677bb74973d6e9e310c78ed3d1563fc9632bed256ce51ce41c05eb8639622f92",
+        "a5448c4ceeb268a1ee6ab23622c8226d7bae4cfca672765b2a2a3ab4ea6bce13",
+        "56b9b77432b496f742db4929416298ad565fc43a3b0fedd1324abdda6f5d2e21",
+        "e58ea9c3a075ad80fa7a49507e48f48551b2b0ec5f7db61feb00718d69d2d2f4",
+        "606a2de6013fcc186f83d177def832e9b11e0474f25a00d6abdaeedec91b02ae",
+        "fc356cf0062c0bd4423f6026be9e7592d586a2fab3e7f00b68336140fb01c041",
+        "270153949e583cf906e8d8db31a1b65f445f01223cccb8b8e1585259c01329f8",
+        "05eedfeb409d714c7693cf52df7c24a637daaa241ead90b9ea6d87402c042d9d",
+        "335f9eea2cf0603afda074dd7030232a80945810f2397de01998b1588adbf4b9",
+        "d21d213dcdf65aac7e2def12c71342b4e015f5a34b3224d0bdfd2ebdd956ff91",
+        "36a92b1047f9686c051ef370792a26c0c716459be8e965623888181168bb5521",
+        "f7f3b99edf8b72fa269b08ca25cd7d375756c3347622742c632b490211e3c15f",
+        "d93a18988adde97a2377c0a9246edd000b282b2381b00fc2dcefb02afe04ce2b",
+        "e679ea86188a0219d9ca26c66f4b0551ec1d00cd0e6aaffb0a1bc7e566755e75",
+        "035e9c29525fa569b2da36789ba2373e184090e17380074fdddde02358276f35",
+        "2b36917eea9504865e8a9685ecc92d2e0a22a1b4fe35312a564ffb5c09ff0291",
+        "97dcf1880b1612a42c9c32634053defd65ce1e89f99fe32d005526c35a72c7a0",
+        "3a391735bc47dfa0d05075b29ee02ebf63dfbc10773bfe56dd7696e9b7400c25",
+        "c6a13dc2546b1409362a72a8c176f62fc65a03c47561a35d2ae4fb5c416c6f8c",
+        "256140fe2d2d3ecb13c762934b5fff66e22efbb6686a9930188c984714bf409b",
+        "8c41349f1a7237d2ec33dbdafc81a4c98afec76f2eb2171894118fb34457a2d1",
+        "ac085e4223226773933b425202d18aeb9dcf7791014a428177d1942202cd36c0",
+        "8672fb717ba3714098bd155842fc6a4760afc82f32df7f6b026343f751afa433",
+        "268d59f2f59f520068d7f698dda8ae679c21ac91256752127eeca89c57b25a55",
+        "a568474bea565084936d85e249017b4950b4618ea437ca8b98db52a454735678",
+        "91ce6633c37b36b8f1855fb961e2a92cb18256b257b228b0fa13b03da88d5a25",
+        "a54c94aaa7362d2053343d2f55cd92f8f1c72f85b7c637709ce5f6f37884def7",
+        "2c9ab5d5718737d136156b8973ae944127462325e5d37d3496f8d4e50dcb4ac5",
+        "28678555811e9a7788bf89ad3ba8cb4e14aca101fe32bc47acfc46bddddb2cd2",
+        "5a51a8e858e397fa6875e3876df15443da94856849185deedb20bb5179fc0f16",
+        "7dc77122470d1b9fac8107aa919a412fbca6e2282b5dcb511b83b0562e02e23d",
+        "c632b7337b7a5a9acd141de555bbbca021cc2b0bfc617524932bbefa9b0837c1",
+        "2aa363da6f1b6e3444cc837cf09ac755cccda287788481bf7e092933551fbf30",
+        "297344e407c8b3a8e1811e3ea23cb01f3ac2eea33345380a173f5929c28ec8d4",
+        "cd2d6f3fd345169b64f58422fa9886c67acf5e82678afceaef7abdc907b620c5",
+        "ef6cdbf6b39fa4a064f46b5e510e438d1e1fda13862feb75ceff15945c00e62b",
+        "14129a71a3aac4bacb845722edc21c379e847fe070eb3827347e0c258805897f",
+        "51573247e0ead0b0b439e260acafa8f63e3386dce2806114bdc3be3b67fd995d",
+        "0328f7eee9b16b5131db91826fffd022c29440cd1ae5e16cd47e6d4964acdf19",
+        "8d5c48c7d4985c1dcfe2a0bb797542482ded4285c8a0802d1c631af94117636b",
+        "615dd608496dcd6fee7b60462e8c164e2ea4122004e80868ca810cee66a51930",
+        "ecca0028dc93837ef6d33eb4128b915687b596fd1b94eafc7cf64d37402a7f44",
+        "bbc5a0bdfdd6712ad5ff39defc44a4011ee1f513b9b1e19d798d8d3c8ded0be6",
+        "75f2e89a4fb0632ab3f8ebc8cdffde4bf3455066a8d3f36fdca53362da56bfcd",
+        "efa1d8a57d8f5444e72427553e24507b89c190c8f3872039e9b5bb4a3ffbe835",
+        "b4e615aa71f8ab227a5cbd63dd0bbfcf3d82f64cd103720f92577c8ae2a41135"
+      ],
+      "findings": [
+        {
+          "rule_id": "RW-COV-001",
+          "check": "coverage",
+          "passed": true,
+          "comparator": ">=",
+          "observed_10dp": "1.0200000000",
+          "threshold": "1.0",
+          "total_reserves": "102000000.00"
+        },
+        {
+          "rule_id": "RW-LIQ-001",
+          "check": "liquidity_floor",
+          "passed": true,
+          "comparator": ">=",
+          "observed_10dp": "0.1999999998",
+          "threshold": "0.05",
+          "total_reserves": "102000000.00"
+        },
+        {
+          "rule_id": "RW-CON-001",
+          "check": "counterparty_concentration",
+          "passed": true,
+          "comparator": "<=",
+          "observed_10dp": "0.2170107045",
+          "threshold": "0.4",
+          "total_reserves": "102000000.00"
+        }
+      ]
+    },
+    "violations": {
+      "reserve_rows_read": 16,
+      "reserve_duplicates": 1,
+      "reserve_keys": [
+        "e3f8681aec6172cab5f719b64d427a40369eecd0f60f66b56d3995c8f48ddfa8",
+        "afdf6f507ec273db99dc7c2c64df35bf5c9724057afdc28f772df2a23f65d0ef",
+        "7c74e923331db77019d894f6450629a1d6e9deaa767a738c16535f3e4053c1d0",
+        "ef705d1a265e9845cf7f2cc126cb048e842fb41379a8ca5dffbb475fffd85e59",
+        "6ec9d03d40693f1ea5986c35953487183dcc18a3eb2c922e881c1f775bfd9b69",
+        "d3c1a9e3a44c814c2c4862b876ee0329f338fa3d47d0bc5678e24ec443f30ad0",
+        "f1d3ac0c0bbcf6cd6db0ad1b9cf7d2e9a3d900dafa93749a18333cabf4bd97d4",
+        "63166483d490df9ed498c6362b4a4cb95e523e6bf73d8ad9e832fb8eda5593a6",
+        "4bdb41ed6ae0623e23cbd845f5e129c3abcb70abe4bcf644f449354279ed47fa",
+        "b0ddebc6d1c463e5db08e225276ea0f8dc4125b7370a31c84001240f0a81e4b7",
+        "239c01fa248cd8c3b366767e9a90253c57c7321a96539c57c88b469d61c36bb5",
+        "12cb5151f5df8fe73f0e19a71eff10f05e9b22c181b47ed0ab45e1abbbd40c29",
+        "7844c007c2f9493b704494f6e8482e3dabb09dc199155cec9ced1d3108a1581e",
+        "0ee6bcae90946917fc3f03d76e98bc207da2850d485fcc0c97964410106d9e9a",
+        "241fe689a798e1962d1ddf972a09ce7f1d84e7e490bde368fb2d5c07ab1053d7"
+      ],
+      "supply_keys": [
+        "a41a42e9289a554e6de88214a20117361eafaccd97523ad48ed8aa33956bf522"
+      ],
+      "redemption_keys": [
+        "a44fa2a711f25c01396e15623ad637ae8849a11bb77ca955dd3488ccad05f0dd",
+        "dd003f9a647b88b1b3b09ce9aa353918656ce596c79d648c8c84b3064ba43364",
+        "71153c14524f2f23aef41acd9519ff0944ddcaa8e3e61dd16e01104760329f99",
+        "7a0fdd27d771aca7e0e15a9566fa235d1795f776b48adba7b807a27e05de3ea7",
+        "be9bd4d7d658b0de04a15e8ad6a54470a8d931980bab90eabfd6a04ea4536197",
+        "496505bbfeaeeacd3d09d27ed1bbf415f3d9f7ddaf4b847a12e90331a1ddf0f5",
+        "cfa2b4bfc5f4dd6dab163a0e56d1026346047d5de35d51d9bf1b7bc158373fc3",
+        "7b48a757a332e9e949ce5a0e1affea5736c2ab62fdf27baadac85b4ecdc15688",
+        "4b89b6a6e36b35d9ac3ebdc3e104f002c1502364b8a91e5aa4bf9c3bac4e9d01",
+        "304c5f2e4b1f92a90af78dfdaa103f4e403569b907f2a7002e999ec72996cb89",
+        "44cc4f059de432852561fd9253b98c01129994f639fb9dddddd754b6d740f1c9",
+        "732cc8b233a4c4cdf36bd71a2d91f158b8f290c637207ccb52cdeb9620222d31",
+        "32a82d8d2515874491239f081b985d3945fc466d0cc1ee47c4eee23c61b413a1",
+        "fef577f2c3ed5ad9e4d7965a8661e842a4026851e10ebedeaeee9b2be7be1c66",
+        "0405565837dc40c32e86c2f895ad6ade379cbf2719a26efc8442688e72a3a4df",
+        "b5355c9e81b6fe36ecac6b1de2c6d2a4d51b347fccf940204bcc55d14684c77d",
+        "261c0d6df6b39959def75e7a9cc37058c56cb2c4fb46b2e5e30542c21eb71f5a",
+        "d3522c18ee891b80a3e6df7198ae5e5beea40550e9c49a67d5ff1f053c154f03",
+        "f3c968a874fbb36444fe1acdc320a8321963d8ed78418cfc6fcf9b7cd01e75b7",
+        "e08fa40920b61aea44685a06a4ddc3ea697e28dca2badfc57a9c3c50d6d7d8a6",
+        "cbe00ff3d4571b68fd4892075dc4467efe0f56fbea5fd95992cecfffa0e82411",
+        "84970a6de88315a9becc8eb8b7bbc98957e2a71aede08fa91ac5dd3ed77c5c05",
+        "bbb6ede370468f2832a8fb24d6709af1aea5c608e1afa41089c54e2f0284443a",
+        "07de6590b18b3addf6833e664b80db4ed25e457113a064916a22ad9eff89bf96",
+        "635befb538c7f22c103f90a5e979e897fcd9e806a715dd9e8b9b73fbe965f8df",
+        "4de2a9225fddb853d9f6f355ee78e58a9b4781d6f33d7aceb3cbce46427fafab",
+        "6e762d7531a5e88e1466c877817f93d1917dce90d75f7c67d3b3c6b319ad7b65",
+        "5ce9c7027e8f3bb7d28c838b85bc6eeed5ae7222841d2b7d9fdbb83c8a6cc6d2",
+        "37a3eede237f4def5ce84eac14921ca2bdea92b958c6ec15ec04600b2a336cef",
+        "7638c5f264fb899147f2ae02d7df9fa17e48885aa17cd36aa839f050a41e7052",
+        "71686a9667a4e8de85712e5424fa9329d7627214a57dde2769c32e0069acd52c",
+        "5290f57d63747749ec719ae081b2744ef68f7bca058ca31c1ecf5c61d598e723",
+        "48b54cf621ca5d02821a9d68eab5cab74c4b8b4c06ca806241c90a06cf4fd9c4",
+        "3a3d79b15093b30601c988c5df8b6ab9dc7e0897f735130b1e9b70fc41a05731",
+        "33bdc818a7eb6bc811a27ecbfcde7e9e6e00e1b7095a68e6f7595d4665af7568",
+        "4d7a0b0443771f043591cda4c2917530e5829b5d05ed26ea26d6e06121c66599",
+        "25777b9200021f80f575d651d38d5ce93ba484502f2881dd8b4a6d8a0ad57aef",
+        "49dbd12199a3fc489579209a6c5d891e416e7999e391e6bd3cb17ab62a5aed89",
+        "b1acfd71c27685755331807e3872b3b5e7bfabf979e267dfdcbde73a1978f7a7",
+        "2b6633bdb6b64da0882aa01c385d6965516504c9bf172a79a50a09663a2a7d41",
+        "4e4c42617d4226ac4b612e9be86517aed225b75417c102de592df72500e621ae",
+        "9e297b8342247eb425d3698d804d6789edbac839fb9c7b20459844dccf74c3da",
+        "626c6640c89898be378d18ba184adab68af6b2f597e27d474b66911b3c5ec59d",
+        "dbeac435244d497d301257fd4eda9790d6e2d7ca11e3ed0a9c25d031dbc90450",
+        "5fd9c96b4505f456bdda749d2080fb06385c4bece3368e650d9e727a54484163",
+        "d6c9efe0d7a29c6f8e893e9eac1680364757efdd4ce9d92d4d4d1b336f368815",
+        "3bc6f76380a4cce1183ecc573f2ec13db0a5f2998fa166d7df71cb40fcafeb59",
+        "4901496eb9e7da9fc17d7df6c9d8ca75f4d348c78e11eaca524b5c4afa412a62",
+        "84e3126acc57cff6f4156583b5116992223f48e1ce14cfe844544e834a1e17a4",
+        "b2b0ced8fe5dc980da8e144e92c6eef98f78a1c8233836e3d77e98c1fab4205d",
+        "6a2ea6d1c86f680746ac680f120aa1d94814b694b96c61cdea11c5687b8530f0",
+        "80b7aa3678c69550d140441269db3d3d0c69e6eb77efd2a64bec90d70fa23bb2",
+        "db0714c37177b3b3eb33ef2237cee70743124dafa76b0e89e4a9eca83176a51c",
+        "5aaf394ed3667231b2f718112875c6f58f34cf4c0e30ae704c3d3e119b5317f2",
+        "a6f7c1448f11bafb11dbf7537b53e4cbd69c2deb8a450f21a721fc26e8f9271a",
+        "857b188a349d23aedc1d5d68d380f1be9f2233e94680facf489a06602b457df5",
+        "00de2218e851971edfec3ef2440c2dc87c3161c2afb769328705dd7ba3e8a244",
+        "8e2e9b5023053ebe78f3f54b4f0d4dbedaeeb3a405c3799aa620ce43b9c272b2",
+        "f06667bb29dd78fac1f1132bcb1962e62be68991afffc5b293494c5400815b11",
+        "44dd1b2b88c589221814fb5fcd0b252dbbd3486adfd2e1d43b5dcced94871709"
+      ],
+      "findings": [
+        {
+          "rule_id": "RW-COV-001",
+          "check": "coverage",
+          "passed": false,
+          "comparator": ">=",
+          "observed_10dp": "0.9500000000",
+          "threshold": "1.0",
+          "total_reserves": "95000000.00"
+        },
+        {
+          "rule_id": "RW-LIQ-001",
+          "check": "liquidity_floor",
+          "passed": false,
+          "comparator": ">=",
+          "observed_10dp": "0.0200000000",
+          "threshold": "0.05",
+          "total_reserves": "95000000.00"
+        },
+        {
+          "rule_id": "RW-CON-001",
+          "check": "counterparty_concentration",
+          "passed": false,
+          "comparator": "<=",
+          "observed_10dp": "0.5500000000",
+          "threshold": "0.4",
+          "total_reserves": "95000000.00"
+        }
+      ]
+    }
+  },
+  "reserve_key_edge_cases": [
+    {
+      "input": {
+        "asset_type": "cash",
+        "amount": "100.00",
+        "counterparty": "Bank A",
+        "maturity_date": "",
+        "is_immediately_available": "true"
+      },
+      "key": "390282c01d0c254cb2f26a72f876a2ffb333e0fb8957ce3c5e303f5f9dec477a"
+    },
+    {
+      "input": {
+        "asset_type": "Cash ",
+        "amount": "100",
+        "counterparty": "  bank   a",
+        "maturity_date": "",
+        "is_immediately_available": "TRUE"
+      },
+      "key": "390282c01d0c254cb2f26a72f876a2ffb333e0fb8957ce3c5e303f5f9dec477a"
+    },
+    {
+      "input": {
+        "asset_type": "t-bill",
+        "amount": "0.5",
+        "counterparty": "Z\u00fcrich \"\u00c4\" Bank\\1",
+        "maturity_date": "2027-03-01",
+        "is_immediately_available": "0"
+      },
+      "key": "194b0291aaaf8250424c58ee725230e70da31dfd123cc93feb3a06b168c862d5"
+    },
+    {
+      "input": {
+        "asset_type": "t-bill",
+        "amount": "1234567.8900",
+        "counterparty": "Bank\tB",
+        "maturity_date": "",
+        "is_immediately_available": "no"
+      },
+      "key": "f89f7741756bf15ad8a06b8cf872d94c51aba0402705ae58733451a9357f531e"
+    },
+    {
+      "input": {
+        "asset_type": "x",
+        "amount": "1e3",
+        "counterparty": "\ud83d\ude00 Bank",
+        "maturity_date": "",
+        "is_immediately_available": "yes"
+      },
+      "key": "83761416c7e1683c96e175b7a6c259418d37a8ac45275ff19c2ef6400d851878"
+    }
+  ]
+}

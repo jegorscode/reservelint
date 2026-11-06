@@ -1,0 +1,17 @@
+asset_type,amount,counterparty,maturity_date,is_immediately_available
+cash_deposit,1045000.00,Synthetic Bank Alpha,,true
+us_treasury_bill,24850641.24,Synthetic Bank Alpha,2027-02-18,false
+us_treasury_bill,26354358.76,Synthetic Bank Alpha,2027-04-19,false
+cash_deposit,190000.00,Synthetic Bank Beta,,true
+us_treasury_bill,3864501.25,Synthetic Bank Beta,2027-03-01,false
+us_treasury_bill,5445498.75,Synthetic Bank Beta,2027-04-17,false
+cash_deposit,190000.00,Synthetic Custody Gamma,,true
+us_treasury_bill,5964860.16,Synthetic Custody Gamma,2027-02-15,false
+us_treasury_bill,3345139.84,Synthetic Custody Gamma,2027-03-13,false
+cash_deposit,190000.00,Synthetic Trust Delta,,true
+us_treasury_bill,4447530.84,Synthetic Trust Delta,2027-04-01,false
+us_treasury_bill,4862469.16,Synthetic Trust Delta,2027-02-22,false
+cash_deposit,285000.00,Synthetic Bank Epsilon,,true
+us_treasury_bill,4337377.49,Synthetic Bank Epsilon,2027-03-22,false
+us_treasury_bill,9627622.51,Synthetic Bank Epsilon,2027-03-12,false
+cash_deposit,1045000.00,Synthetic Bank Alpha,,true

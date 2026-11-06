@@ -58,11 +58,13 @@ rules:
       clock_start: max(request_ts, onboarded_ts)
       # Clock end: issuer has fully processed and initiated the outgoing transfer.
       clock_end: transfer_initiated_ts
-      business_day: weekdays that are not Federal holidays
+      business_day: any day other than a Saturday, Sunday, or Federal holiday
       timezone: America/New_York
       near_breach_margin_business_days: null # tool setting, owner to decide
-      holiday_calendar: null # to be defined in Phase 3
-    source: "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1) (as described in the final rule preamble)."
+      # Reviewable data file (added in Phase 3). Default is the Federal holiday schedule per
+      # the statutory definition; pointing this at a Fedwire calendar file switches schedules.
+      holiday_calendar: config/holidays.yaml
+    source: "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble)."
     verified: true
     notes: >-
       Figures and definitions taken from preamble text, not the codified regulation text.
