@@ -100,6 +100,13 @@ func TestNamesAliasesAndSpelling(t *testing.T) {
 		t.Fatalf("%s", problems(f))
 	}
 	f = check(t, compRule(compParams), monday, nil, asset("bitcoin", "5", ""), asset("us_currency", "5", ""))
+	msg := problems(f)
+	if !strings.Contains(msg, "allowed under test source: demand_deposit, repo_proceeds, treasury_security, us_currency") {
+		t.Errorf("message should cite the rule and list every allowed type, sorted: %s", msg)
+	}
+	if !strings.Contains(msg, "(also accepted as aliases: cash_deposit, us_treasury_bill)") {
+		t.Errorf("message should list the aliases: %s", msg)
+	}
 	if f.Passed || !strings.Contains(problems(f), `asset type "bitcoin" is not an eligible reserve asset type`) ||
 		f.Details["ineligible_total"] != "5" || !f.Observed.Equal(dec("0.5")) {
 		t.Fatalf("%+v", f)

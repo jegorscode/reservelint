@@ -75,6 +75,24 @@ func CheckReserveComposition(rule rules.Rule, reserves []model.ReserveRow, asOf 
 		}
 	}
 
+	// The list is closed ("must comprise exclusively"), so an unrecognised asset type is a failure
+	// whose message names every allowed type. It is built once and reused for each offending row.
+	ids := make([]string, 0, len(eligible))
+	for id := range eligible {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	allowed := strings.Join(ids, ", ")
+	if len(aliases) > 0 {
+		names := make([]string, 0, len(aliases))
+		for a := range aliases {
+			names = append(names, a)
+		}
+		sort.Strings(names)
+		allowed += " (also accepted as aliases: " + strings.Join(names, ", ") + ")"
+	}
+	citation := strings.TrimRight(strings.TrimSpace(rule.Source), ".")
+
 	tz, err := rule.String("timezone")
 	if err != nil {
 		return Finding{}, err
@@ -102,7 +120,7 @@ func CheckReserveComposition(rule rules.Rule, reserves []model.ReserveRow, asOf 
 		reason := ""
 		switch {
 		case !ok:
-			reason = fmt.Sprintf("asset type %q is not an eligible reserve asset type (add it, or an alias, to the rule if it is one)", r.AssetType)
+			reason = fmt.Sprintf("asset type %q is not an eligible reserve asset type; allowed under %s: %s", r.AssetType, citation, allowed)
 		case spec.MaxRemainingDays != nil || spec.MaxRemainingBusinessDays != nil:
 			reason, err = maturityProblem(r, id, spec, snapshot, cal)
 			if err != nil {

@@ -153,8 +153,10 @@ rules:
       the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market
       fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be
       checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not
-      reserve assets and are skipped. An asset_type missing from this list fails the check; map it
-      with asset_type_aliases if it is eligible. "Overnight" is applied as at most one business
+      reserve assets and are skipped. The list is closed ("must comprise exclusively"): an
+      asset_type missing from it, including a typo, FAILS the check (exit 1) and the message lists
+      every allowed type. If the asset is eligible, add its name to asset_type_aliases.
+      "Overnight" is applied as at most one business
       day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.
 
   - id: RW-STR-001

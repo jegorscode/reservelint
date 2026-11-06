@@ -52,8 +52,10 @@ measured from the snapshot date as a New York calendar date; a matured asset is 
 check fails if any reserve asset is ineligible and lists each one with the reason. It tests type
 and remaining maturity only: collateral, overcollateralization, counterparty creditworthiness,
 fund holdings, OCC approvals and FDIC/NCUA deposit limits cannot be checked from this data and are
-listed as unverifiable. An `asset_type` that is eligible but not in the list fails until you add
-it, or an alias, to `rules/rules.yaml`. Rows flagged `is_repo_liability` are skipped.
+listed as unverifiable. The list is closed ("must comprise exclusively"), so any unrecognised
+`asset_type`, including a typo, is a FAIL (exit 1). Each such row's message lists every allowed
+type and alias. If the asset really is eligible, add its name as an alias in `rules/rules.yaml`.
+Rows flagged `is_repo_liability` are skipped.
 
 **Redemption surge.** Finds the busiest rolling 24-hour window of requests (every status counts)
 and compares its total with `max_share_of_issuance` of the latest supply, exactly and strictly
