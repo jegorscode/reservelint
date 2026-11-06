@@ -81,6 +81,20 @@ func (r Rule) String(name string) (string, error) {
 	return n.Value, nil
 }
 
+// Decode decodes a structured (mapping or list) parameter into out. Numbers inside it are
+// decoded by yaml.v3 into the target's field types, so use int or string fields, not float64,
+// for anything that must stay exact.
+func (r Rule) Decode(name string, out any) error {
+	n, ok := r.Parameters[name]
+	if !ok || n.Tag == "!!null" {
+		return fmt.Errorf("rule %s: parameter %q is missing or null", r.ID, name)
+	}
+	if err := n.Decode(out); err != nil {
+		return fmt.Errorf("rule %s: parameter %q: %w", r.ID, name, err)
+	}
+	return nil
+}
+
 // Has reports whether the parameter exists and is not null.
 func (r Rule) Has(name string) bool {
 	n, ok := r.Parameters[name]

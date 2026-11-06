@@ -17,7 +17,7 @@ counting convention.
 | RW-CON-001 | `counterparty_concentration` ([`CheckCounterpartyConcentration`](../internal/engine/engine.go)) | reserves | `max_counterparty_share` | largest non-exempt counterparty share <= maximum | Yes |
 | RW-RED-001 | `redemption_timing` ([`CheckRedemptionTiming`](../internal/engine/redemption.go)) | redemptions, supply `as_of`, holiday calendar | `max_business_days`, `near_breach_margin_business_days`, `timezone`, `holiday_calendar` | no evaluated redemption exceeds the maximum business days | Yes |
 | RW-RED-002 | `redemption_surge` ([`CheckRedemptionSurge`](../internal/engine/surge.go)) | redemptions, supply | `max_share_of_issuance`, `window_hours` | always (a duty to notify, not a violation); WARNING when requests in a 24-hour window exceed the share | Yes |
-| RW-COMP-001 | none | none | none | not checked (eligible asset types, 93-day maturity) | Yes |
+| RW-COMP-001 | `reserve_composition` ([`CheckReserveComposition`](../internal/engine/composition.go)) | reserves, snapshot date, holiday calendar | `eligible_asset_types`, `asset_type_aliases`, `timezone`, `holiday_calendar` | every reserve asset is an eligible type and within its remaining-maturity limit | Yes |
 | RW-STR-001 | none | none | none | not checked (qualitative operational requirements) | Yes |
 | RW-RPT-001 | none | none | none | not checked (monthly composition report) | Yes |
 | RW-RPT-002 | none | none | none | not checked (monthly examination and certification) | Yes |
@@ -44,6 +44,16 @@ whitespace and ignoring case. Rows marked `concentration_exemption` (`us_governm
 of every counterparty's numerator but stay in the denominator, and the report lists the exempt
 amounts. The tool cannot verify the custodian conditions of 15.11(d); an exemption is taken as
 asserted by the issuer.
+
+**Reserve composition.** Each reserve asset's `asset_type` must be one of the eligible types in the
+rule (or an alias of one), compared ignoring case, spaces and `-` versus `_`. Types with a limit
+(Treasuries: 93 calendar days; overnight repos: 1 business day) need a `maturity_date` within it,
+measured from the snapshot date as a New York calendar date; a matured asset is ineligible. The
+check fails if any reserve asset is ineligible and lists each one with the reason. It tests type
+and remaining maturity only: collateral, overcollateralization, counterparty creditworthiness,
+fund holdings, OCC approvals and FDIC/NCUA deposit limits cannot be checked from this data and are
+listed as unverifiable. An `asset_type` that is eligible but not in the list fails until you add
+it, or an alias, to `rules/rules.yaml`. Rows flagged `is_repo_liability` are skipped.
 
 **Redemption surge.** Finds the busiest rolling 24-hour window of requests (every status counts)
 and compares its total with `max_share_of_issuance` of the latest supply, exactly and strictly

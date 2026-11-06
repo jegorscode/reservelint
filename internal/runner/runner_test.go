@@ -128,15 +128,15 @@ func TestGoldenReports(t *testing.T) {
 func TestCleanDataPassesWithCaveats(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("clean"))
-	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 5 || rep.Partial {
+	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 6 || rep.Partial {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
 	joined := strings.Join(rep.Caveats, "\n")
 	if strings.Contains(joined, "RW-") || !strings.Contains(joined, "Holiday calendar") {
 		t.Errorf("only the unverified calendar should be a caveat: %v", rep.Caveats)
 	}
-	if len(rep.NotChecked) != 5 {
-		t.Errorf("expected 5 tracked-but-unchecked rules, got %+v", rep.NotChecked)
+	if len(rep.NotChecked) != 4 {
+		t.Errorf("expected 4 tracked-but-unchecked rules, got %+v", rep.NotChecked)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestViolationsFail(t *testing.T) {
 	rep := run(t, vectorOpts("violations"))
 	// Coverage, liquidity, concentration and redemption timing all fail; the 24-hour surge check
 	// passes; the vector data repeats one unkeyed line, which raises DUPLICATE_ROW_WARNING.
-	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 4 || rep.Counts.Warning != 1 || rep.Counts.Pass != 1 {
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 4 || rep.Counts.Warning != 1 || rep.Counts.Pass != 2 {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
 	if in := rep.Inputs[0]; in.DuplicateCount() != 0 || in.IdenticalUnkeyedCount() != 1 || in.RowsRead != 16 || in.RowsUsed != 16 {
@@ -272,6 +272,53 @@ func TestExemptionsAndRepoLiabilitiesEndToEnd(t *testing.T) {
 	}
 	if md := string(report.Markdown(rep)); !strings.Contains(md, "exempt_exposure_total: 60000000") || !strings.Contains(md, "us_government: 60000000") {
 		t.Error("markdown should show exempt exposure")
+	}
+}
+
+func TestIneligibleAssetFailsCompositionEndToEnd(t *testing.T) {
+	inRepoRoot(t)
+	good, _ := os.ReadFile("testdata/vectors/clean/reserves.csv")
+	opts := vectorOpts("clean")
+	opts.ReservesPath = writeFile(t, "r.csv", string(good)+"corporate_bond,1000000,Bank X,2027-06-01,false\n"+"us_treasury_bill,5,Bank X,2028-01-01,false\n")
+	rep := run(t, opts)
+	var comp report.Finding
+	for _, f := range rep.Findings {
+		if f.RuleID == "RW-COMP-001" {
+			comp = f
+		}
+	}
+	if comp.Status != "fail" || rep.ExitCode != 1 || comp.Details["ineligible_rows"] != 2 {
+		t.Fatalf("composition: %s %+v (exit %d)", comp.Status, comp.Details, rep.ExitCode)
+	}
+	md := string(report.Markdown(rep))
+	if !strings.Contains(md, `asset type "corporate_bond" is not an eligible reserve asset type`) || !strings.Contains(md, "exceeds the 93 day limit") ||
+		!strings.Contains(md, "Collateral, overcollateralization") {
+		t.Errorf("markdown should list each ineligible row and the unverifiable conditions:\n%s", md)
+	}
+	if csvData, _ := report.FindingsCSV(rep); !strings.Contains(string(csvData), "RW-COMP-001,reserve_composition,fail") {
+		t.Error("findings.csv should carry the composition failure")
+	}
+}
+
+func TestCompositionRuleAloneLoadsTheCalendarItNames(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean")
+	opts.RulesPath = writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n"+
+		"  - id: T-COMP\n    check: reserve_composition\n    description: d\n    source: s\n    verified: true\n    parameters:\n"+
+		"      timezone: America/New_York\n      holiday_calendar: config/holidays.yaml\n"+
+		"      eligible_asset_types:\n        demand_deposit: {}\n        treasury_security: { max_remaining_days: 93 }\n"+
+		"      asset_type_aliases:\n        cash_deposit: demand_deposit\n        us_treasury_bill: treasury_security\n")
+	rep := run(t, opts)
+	if rep.Calendar == nil || rep.Calendar.Path != "config/holidays.yaml" || rep.Findings[0].Status != "pass" {
+		t.Fatalf("calendar %+v finding %+v", rep.Calendar, rep.Findings[0])
+	}
+	// Without a holiday_calendar parameter the calendar is not loaded.
+	opts.RulesPath = writeFile(t, "rules2.yaml", "schema_version: 1\nrules:\n"+
+		"  - id: T-COMP\n    check: reserve_composition\n    description: d\n    source: s\n    verified: true\n    parameters:\n"+
+		"      timezone: America/New_York\n      eligible_asset_types:\n        demand_deposit: {}\n        treasury_security: { max_remaining_days: 93 }\n"+
+		"      asset_type_aliases:\n        cash_deposit: demand_deposit\n        us_treasury_bill: treasury_security\n")
+	if rep = run(t, opts); rep.Calendar != nil || rep.Findings[0].Status != "pass" {
+		t.Fatalf("calendar %+v", rep.Calendar)
 	}
 }
 
@@ -481,7 +528,7 @@ func TestAuditRecordHashesMatchFilesOnDisk(t *testing.T) {
 		}
 	}
 	if audit.ToolVersion == "" || audit.Result.Status != report.StatusFail || audit.Result.ExitCode != 1 ||
-		len(audit.Result.Findings) != 6 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 0 {
+		len(audit.Result.Findings) != 7 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 0 {
 		t.Errorf("audit result: %+v", audit.Result)
 	}
 	if !audit.Timestamp.Equal(fixedNow) || !strings.Contains(audit.Disclaimer, "Not legal advice") {

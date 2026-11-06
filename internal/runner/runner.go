@@ -46,7 +46,7 @@ func inputErr(err error) error { return &InputError{Err: err} }
 
 var knownChecks = map[string]bool{
 	engine.NameCoverage: true, engine.NameLiquidity: true,
-	engine.NameConcentration: true, engine.NameRedemption: true, engine.NameSurge: true,
+	engine.NameConcentration: true, engine.NameRedemption: true, engine.NameSurge: true, engine.NameComposition: true,
 }
 
 const maxListedErrors = 5
@@ -61,14 +61,19 @@ func Run(opts Options) (*report.Report, error) {
 	if err != nil {
 		return nil, inputErr(err)
 	}
-	var redemptionRule *rules.Rule
+	// calendarRule supplies the holiday calendar path and time zone: the redemption rule if there
+	// is one, otherwise a composition rule that names a calendar (for business-day maturity limits).
+	var calendarRule *rules.Rule
 	for i, rule := range loaded.Set.Rules {
 		name := rule.CheckName()
 		if name != "" && !knownChecks[name] {
 			return nil, inputErr(fmt.Errorf("rule %s: unknown check %q", rule.ID, name))
 		}
-		if name == engine.NameRedemption {
-			redemptionRule = &loaded.Set.Rules[i]
+		switch {
+		case name == engine.NameRedemption:
+			calendarRule = &loaded.Set.Rules[i]
+		case name == engine.NameComposition && calendarRule == nil && (rule.Has("holiday_calendar") || opts.HolidaysPath != ""):
+			calendarRule = &loaded.Set.Rules[i]
 		}
 	}
 
@@ -115,13 +120,13 @@ func Run(opts Options) (*report.Report, error) {
 	}
 
 	var cal *calendar.Calendar
-	if redemptionRule != nil {
-		if cal, err = loadCalendar(*redemptionRule, opts.HolidaysPath); err != nil {
+	if calendarRule != nil {
+		if cal, err = loadCalendar(*calendarRule, opts.HolidaysPath); err != nil {
 			return nil, inputErr(err)
 		}
 		from, to := cal.Coverage()
 		rep.Calendar = &report.CalendarInfo{
-			FileInfo: report.FileInfo{Path: calendarPath(*redemptionRule, opts.HolidaysPath), SHA256: cal.SHA256},
+			FileInfo: report.FileInfo{Path: calendarPath(*calendarRule, opts.HolidaysPath), SHA256: cal.SHA256},
 			Name:     cal.Name, Kind: cal.Kind, Verified: cal.Verified, Timezone: cal.Location().String(),
 			CoverageFrom: from.String(), CoverageTo: to.String(),
 		}
@@ -140,6 +145,8 @@ func Run(opts Options) (*report.Report, error) {
 			f, runErr = engine.CheckLiquidityFloor(rule, reserves.Rows)
 		case engine.NameConcentration:
 			f, runErr = engine.CheckCounterpartyConcentration(rule, reserves.Rows)
+		case engine.NameComposition:
+			f, runErr = engine.CheckReserveComposition(rule, reserves.Rows, asOf, cal)
 		case engine.NameSurge:
 			f, runErr = engine.CheckRedemptionSurge(rule, redemptions.Rows, latest)
 		case engine.NameRedemption:

@@ -2,7 +2,7 @@
 
 > Monitoring and reporting aid. Not legal advice. Not an official OCC form.
 
-**Overall: FAIL** (4 fail, 1 warning, 1 pass)
+**Overall: FAIL** (4 fail, 1 warning, 2 pass)
 
 - Generated: 2027-02-01T21:30:00Z by reservelint 0.1.0-dev
 - Snapshot as of: 2027-02-01T21:00:00Z
@@ -17,6 +17,7 @@
 | RW-CON-001 | counterparty_concentration | FAIL | 55.4896% | at most 40% | yes |
 | RW-RED-001 | redemption_timing | FAIL | 8 business days | at most 2 business days | yes |
 | RW-RED-002 | redemption_surge | PASS | 1.9298% | at most 10% | yes |
+| RW-COMP-001 | reserve_composition | PASS | 0% | at most 0% | yes |
 | DUPLICATE_ROW_WARNING | duplicate_rows | WARNING | 1 rows | at most 0 rows | yes |
 
 ### RW-COV-001: coverage - FAIL
@@ -112,6 +113,25 @@ Redemption requests in excess of a share of outstanding issuance value in a sing
 - requests_considered: 60
 - window_hours: 24
 
+### RW-COMP-001: reserve_composition - PASS
+
+Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these.
+
+- Observed: 0%; required at most 0%
+- Citation: 12 CFR 15.11(b).
+- Rule verified: yes
+- Rule notes: Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. An asset_type missing from this list fails the check; map it with asset_type_aliases if it is eligible. "Overnight" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.
+- eligible_by_type:
+  - demand_deposit: 2945000
+  - treasury_security: 93100000
+- eligible_total: 96045000
+- ineligible_rows: 0
+- ineligible_total: 0
+- snapshot_date: 2027-02-01
+- timezone: America/New_York
+- total_reserves: 96045000
+- unverifiable_by_tool: Only asset type and remaining maturity are tested. Collateral, overcollateralization, counterparty creditworthiness, fund holdings, OCC approvals and FDIC/NCUA deposit limits cannot be checked from this data.
+
 ### DUPLICATE_ROW_WARNING: duplicate_rows - WARNING
 
 Identical reserve rows without a holding_id were kept as separate positions; they may be repeated lines.
@@ -157,7 +177,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 16 | 0 | 1 | 0 |
 | testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
 | testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
-| rules/rules.yaml | rules | `70476a75ef537e2273c07712977f5e31073167c86d8116ee132196b9f05ae4be` | | | | | |
+| rules/rules.yaml | rules | `4d5d037833dfd9eb47b91693e17b398ebb4f7b5e71e2d961d62277b8cbdfcb16` | | | | | |
 | config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
 Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
@@ -166,7 +186,6 @@ Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv
 
 ## Rules tracked but not checked
 
-- RW-COMP-001: Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these. (no check implemented)
 - RW-STR-001: Demonstrate operational capability to access and monetize reserve assets to meet redemptions in normal and adverse conditions, and keep a buffer of reserve assets in excess of outstanding issuance value where needed. (no check implemented)
 - RW-RPT-001: Publish the monthly composition of reserves on the issuer's website by noon on the last day of each month, in a format substantially similar to Table 1 to 15.11(e). (no check implemented)
 - RW-RPT-002: Have the previous month-end composition report examined by a registered public accounting firm and published with it, and submit a monthly CEO and CFO accuracy certification to the OCC. (no check implemented)

@@ -119,14 +119,14 @@ an exact repeat is dropped and reported.
 
 - Three points rest on the final rule preamble or owner decisions, not supplied codified text: the redemption clock start (12 CFR 15.12(a)(1)), the business-day definition (15.2) and the day-counting convention.
 - Concentration exemptions (`concentration_exemption`) and `is_repo_liability` are taken as supplied; the tool cannot verify the custodian conditions of 15.11(d).
-- Reserve composition (15.11(b): eligible asset types, 93-day maturity) is not checked: `asset_type` is free text.
+- Reserve composition (15.11(b)) tests asset type and remaining maturity only; collateral, overcollateralization, counterparty creditworthiness, fund holdings, OCC approvals and deposit-insurance limits cannot be checked. An eligible `asset_type` the rule does not list fails until you add it or an alias in `rules/rules.yaml`.
 - The 24-hour redemption-surge window is applied as a rolling window; the rule text does not say rolling or calendar day.
 - `is_immediately_available` is trusted as supplied.
 - Identical reserve rows without a `holding_id` are kept (and warned about), so accidental repeats
   can overstate reserves until a `holding_id` is supplied; that is the cautious trade-off against
   merging real positions and understating reserves.
 - Holiday calendar covers 2026–2027 and is unverified.
-- Composition, operational capability, the monthly composition report and certification, and the 15.11(g) notification and 15-day liquidation duties are tracked but not checked (the last needs daily history).
+- Operational capability, the monthly composition report and certification, and the 15.11(g) notification and 15-day liquidation duties are tracked but not checked (the last needs daily history).
 - Out of scope: AML/sanctions checks, a UI, blockchain RPC calls (supply comes from a file).
 
 ## Layout

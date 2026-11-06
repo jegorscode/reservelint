@@ -63,7 +63,7 @@ func TestCheckCleanExitsZeroAndWritesFourFiles(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s%s", code, out, errOut)
 	}
-	if !strings.HasPrefix(out, "PASS: 0 fail, 0 warning, 5 pass") || !strings.Contains(out, "Not legal advice") {
+	if !strings.HasPrefix(out, "PASS: 0 fail, 0 warning, 6 pass") || !strings.Contains(out, "Not legal advice") {
 		t.Errorf("stdout: %s", out)
 	}
 	for _, name := range []string{"report.md", "findings.csv", "report.json"} {
@@ -80,7 +80,7 @@ func TestCheckViolationsExitsOne(t *testing.T) {
 	dir := t.TempDir()
 	args := append([]string{"check", "--out", dir}, vec("violations")...)
 	code, out, errOut := run(args...)
-	if code != 1 || !strings.HasPrefix(out, "FAIL: 4 fail, 1 warning, 1 pass") || errOut != "" {
+	if code != 1 || !strings.HasPrefix(out, "FAIL: 4 fail, 1 warning, 2 pass") || errOut != "" {
 		t.Fatalf("exit %d stdout %q stderr %q", code, out, errOut)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "report.md")); err != nil {
@@ -90,7 +90,7 @@ func TestCheckViolationsExitsOne(t *testing.T) {
 
 func TestAllowDuplicateRowsFlag(t *testing.T) {
 	args := append([]string{"check", "--out", t.TempDir()}, vec("violations")...)
-	if code, out, _ := run(append(args, "--allow-duplicate-rows")...); code != 1 || !strings.HasPrefix(out, "FAIL: 4 fail, 0 warning, 1 pass") {
+	if code, out, _ := run(append(args, "--allow-duplicate-rows")...); code != 1 || !strings.HasPrefix(out, "FAIL: 4 fail, 0 warning, 2 pass") {
 		t.Fatalf("with the flag: exit %d stdout %q", code, out)
 	}
 }

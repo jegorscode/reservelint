@@ -114,19 +114,48 @@ rules:
       Outstanding issuance is the latest supply snapshot, for a single brand of stablecoin.
 
   - id: RW-COMP-001
-    check: null # not implemented yet
+    check: reserve_composition
     description: >-
       Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve
       account balances, demand deposits and insured shares, Treasury securities of 93 days or less
       remaining maturity, overnight repurchase and reverse repurchase agreements on those terms,
       qualifying government money market fund shares, OCC-approved similar assets, and tokenized
       forms of some of these.
-    parameters: {}
+    parameters:
+      # Remaining maturity is measured from the snapshot date, as a calendar date in this zone.
+      timezone: America/New_York
+      holiday_calendar: config/holidays.yaml # used for business-day limits ("overnight")
+      # Eligible asset_type values. Names are compared ignoring case, spaces and "-" vs "_".
+      # Types with a limit need a maturity_date within it; a matured asset is ineligible.
+      eligible_asset_types:
+        us_currency: { citation: "15.11(b)(1)" }
+        fed_reserve_balance: { citation: "15.11(b)(1)" }
+        demand_deposit: { citation: "15.11(b)(2)" }
+        insured_shares: { citation: "15.11(b)(2)" }
+        treasury_security: { citation: "15.11(b)(3)", max_remaining_days: 93 }
+        repo_proceeds: { citation: "15.11(b)(4)", max_remaining_business_days: 1 } # overnight
+        reverse_repo: { citation: "15.11(b)(5)", max_remaining_business_days: 1 } # overnight
+        government_mmf: { citation: "15.11(b)(6)" }
+        other_approved_government_asset: { citation: "15.11(b)(7)" }
+        tokenized_cash: { citation: "15.11(b)(8) of (b)(1)" }
+        tokenized_deposit: { citation: "15.11(b)(8) of (b)(2)" }
+        tokenized_treasury_security: { citation: "15.11(b)(8) of (b)(3)", max_remaining_days: 93 }
+        tokenized_government_mmf: { citation: "15.11(b)(8) of (b)(6)" }
+        tokenized_other_approved_government_asset: { citation: "15.11(b)(8) of (b)(7)" }
+      # Other names used in input files, mapped to an eligible type above. Add yours here.
+      asset_type_aliases:
+        cash_deposit: demand_deposit
+        us_treasury_bill: treasury_security
     source: "12 CFR 15.11(b)."
     verified: true
     notes: >-
-      Tracked only. A check needs a controlled vocabulary for asset_type and remaining-maturity
-      tests against the snapshot date; none exists yet, so asset_type is free text today.
+      Only the asset type and remaining maturity are tested. Collateral, overcollateralization and
+      the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market
+      fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be
+      checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not
+      reserve assets and are skipped. An asset_type missing from this list fails the check; map it
+      with asset_type_aliases if it is eligible. "Overnight" is applied as at most one business
+      day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.
 
   - id: RW-STR-001
     check: null # qualitative; not implemented

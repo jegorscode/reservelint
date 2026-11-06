@@ -27,7 +27,7 @@
     {
       "role": "rules",
       "path": "rules/rules.yaml",
-      "sha256": "70476a75ef537e2273c07712977f5e31073167c86d8116ee132196b9f05ae4be"
+      "sha256": "4d5d037833dfd9eb47b91693e17b398ebb4f7b5e71e2d961d62277b8cbdfcb16"
     },
     {
       "role": "holiday_calendar",
@@ -39,17 +39,17 @@
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "8c3850b37910b788ff3bce0056be7422b487d57db3ce7cfae26a17ee866f7846"
+      "sha256": "ab36de67a4c36ed4154289d5cb62dfbd9c3f4d5b40644427efd083503b3a1d75"
     },
     {
       "role": "findings.csv",
       "path": "findings.csv",
-      "sha256": "c1484d73fe92873f5eccfb0a9fca2b020cf3e6b8787aab0667f36d01a8612ee8"
+      "sha256": "5efac5d0f5ecbbd1fcdee30661afd44bf4216767146729abca86085758f628e1"
     },
     {
       "role": "report.json",
       "path": "report.json",
-      "sha256": "94ac1716eca370c8c685754593270bcb6319cfe8ac841d8d110c957ca2855595"
+      "sha256": "83b8e9a937cf868e3cc668b3c8beb2f51bb4c92bb9d320ad8ef401437e31cff7"
     }
   ],
   "result": {
@@ -57,7 +57,7 @@
     "exit_code": 1,
     "partial_run": false,
     "counts": {
-      "pass": 1,
+      "pass": 2,
       "warning": 1,
       "fail": 4
     },
@@ -179,6 +179,32 @@
           "outstanding_issuance": "100000000",
           "requests_considered": 60,
           "window_hours": 24
+        }
+      },
+      {
+        "rule_id": "RW-COMP-001",
+        "check": "reserve_composition",
+        "description": "Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these.",
+        "status": "pass",
+        "observed": "0",
+        "comparator": "<=",
+        "threshold": "0",
+        "citation": "12 CFR 15.11(b).",
+        "rule_verified": true,
+        "rule_notes": "Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. An asset_type missing from this list fails the check; map it with asset_type_aliases if it is eligible. \"Overnight\" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.",
+        "details": {
+          "eligible_by_type": {
+            "demand_deposit": "2945000",
+            "treasury_security": "93100000"
+          },
+          "eligible_total": "96045000",
+          "ineligible": null,
+          "ineligible_rows": 0,
+          "ineligible_total": "0",
+          "snapshot_date": "2027-02-01",
+          "timezone": "America/New_York",
+          "total_reserves": "96045000",
+          "unverifiable_by_tool": "Only asset type and remaining maturity are tested. Collateral, overcollateralization, counterparty creditworthiness, fund holdings, OCC approvals and FDIC/NCUA deposit limits cannot be checked from this data."
         }
       },
       {

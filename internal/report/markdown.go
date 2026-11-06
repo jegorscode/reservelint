@@ -119,6 +119,20 @@ func Markdown(r *Report) []byte {
 				}
 				continue
 			}
+			if list, ok := f.Details[k].([]string); ok {
+				if len(list) == 0 {
+					continue
+				}
+				w("- %s (%d):\n", k, len(list))
+				for i, item := range list {
+					if i == maxListed {
+						w("  - ... and %d more (see report.json)\n", len(list)-maxListed)
+						break
+					}
+					w("  - %s\n", item)
+				}
+				continue
+			}
 			w("- %s: %v\n", k, f.Details[k])
 		}
 		b.WriteString("\n")

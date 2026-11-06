@@ -8,7 +8,7 @@
   "exit_code": 0,
   "partial_run": false,
   "counts": {
-    "pass": 5,
+    "pass": 6,
     "warning": 0,
     "fail": 0
   },
@@ -50,7 +50,7 @@
   ],
   "rules_file": {
     "path": "rules/rules.yaml",
-    "sha256": "70476a75ef537e2273c07712977f5e31073167c86d8116ee132196b9f05ae4be"
+    "sha256": "4d5d037833dfd9eb47b91693e17b398ebb4f7b5e71e2d961d62277b8cbdfcb16"
   },
   "holiday_calendar": {
     "path": "config/holidays.yaml",
@@ -181,6 +181,32 @@
         "requests_considered": 60,
         "window_hours": 24
       }
+    },
+    {
+      "rule_id": "RW-COMP-001",
+      "check": "reserve_composition",
+      "description": "Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these.",
+      "status": "pass",
+      "observed": "0",
+      "comparator": "<=",
+      "threshold": "0",
+      "citation": "12 CFR 15.11(b).",
+      "rule_verified": true,
+      "rule_notes": "Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. An asset_type missing from this list fails the check; map it with asset_type_aliases if it is eligible. \"Overnight\" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.",
+      "details": {
+        "eligible_by_type": {
+          "demand_deposit": "20399999.98",
+          "treasury_security": "81600000.02"
+        },
+        "eligible_total": "102000000",
+        "ineligible": null,
+        "ineligible_rows": 0,
+        "ineligible_total": "0",
+        "snapshot_date": "2027-02-01",
+        "timezone": "America/New_York",
+        "total_reserves": "102000000",
+        "unverifiable_by_tool": "Only asset type and remaining maturity are tested. Collateral, overcollateralization, counterparty creditworthiness, fund holdings, OCC approvals and FDIC/NCUA deposit limits cannot be checked from this data."
+      }
     }
   ],
   "redemption_timing": {
@@ -238,11 +264,6 @@
     ]
   },
   "rules_not_checked": [
-    {
-      "rule_id": "RW-COMP-001",
-      "description": "Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these.",
-      "reason": "no check implemented"
-    },
     {
       "rule_id": "RW-STR-001",
       "description": "Demonstrate operational capability to access and monetize reserve assets to meet redemptions in normal and adverse conditions, and keep a buffer of reserve assets in excess of outstanding issuance value where needed.",
