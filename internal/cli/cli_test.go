@@ -80,11 +80,18 @@ func TestCheckViolationsExitsOne(t *testing.T) {
 	dir := t.TempDir()
 	args := append([]string{"check", "--out", dir}, vec("violations")...)
 	code, out, errOut := run(args...)
-	if code != 1 || !strings.HasPrefix(out, "FAIL: 3 fail, 1 warning, 0 pass") || errOut != "" {
+	if code != 1 || !strings.HasPrefix(out, "FAIL: 3 fail, 2 warning, 0 pass") || errOut != "" {
 		t.Fatalf("exit %d stdout %q stderr %q", code, out, errOut)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "report.md")); err != nil {
 		t.Error("a FAIL run must still write the report")
+	}
+}
+
+func TestAllowDuplicateRowsFlag(t *testing.T) {
+	args := append([]string{"check", "--out", t.TempDir()}, vec("violations")...)
+	if code, out, _ := run(append(args, "--allow-duplicate-rows")...); code != 1 || !strings.HasPrefix(out, "FAIL: 3 fail, 1 warning, 0 pass") {
+		t.Fatalf("with the flag: exit %d stdout %q", code, out)
 	}
 }
 

@@ -164,6 +164,29 @@ func TestRowKeyIgnoresFormattingNoise(t *testing.T) {
 	}
 }
 
+func TestHoldingIDIsPartOfTheRowKey(t *testing.T) {
+	plain := mustReserve(t, nil).RowKey()
+	a := mustReserve(t, map[string]string{"holding_id": "HLD-00001"})
+	b := mustReserve(t, map[string]string{"holding_id": "HLD-00002"})
+	if a.RowKey() == b.RowKey() || a.RowKey() == plain {
+		t.Fatal("holding_id must distinguish otherwise identical rows")
+	}
+	if again := mustReserve(t, map[string]string{"holding_id": "  HLD-00001 "}); again.RowKey() != a.RowKey() {
+		t.Error("surrounding spaces in holding_id should not matter")
+	}
+	if blank := mustReserve(t, map[string]string{"holding_id": "  "}); blank.RowKey() != plain || blank.HoldingID != "" {
+		t.Error("a blank holding_id must behave as absent and keep the Python-compatible key")
+	}
+}
+
+func TestHoldingIDValidation(t *testing.T) {
+	for name, id := range map[string]string{"too long": strings.Repeat("x", 129), "control char": "HLD\x01"} {
+		if _, err := model.ParseReserve(reserve(map[string]string{"holding_id": id})); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
 func TestRowKeySameInstantDifferentOffsets(t *testing.T) {
 	a, _ := model.ParseRedemption(redemption(map[string]string{"request_ts": "2027-02-01T15:00:00Z"}))
 	b, _ := model.ParseRedemption(redemption(map[string]string{"request_ts": "2027-02-01T10:00:00-05:00"}))

@@ -105,13 +105,13 @@ Requests needing attention (clock start is the later of request and onboarding; 
 
 ## Input integrity
 
-| File | Role | SHA-256 | Rows read | Rows used | Duplicates ignored | Invalid rows |
-|---|---|---|---|---|---|---|
-| testdata/vectors/clean/reserves.csv | reserves | `5932ad67332df7319566b0877b81d3391bf61db7818afcc5eb95f7630f8b02f6` | 15 | 15 | 0 | 0 |
-| testdata/vectors/clean/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 |
-| testdata/vectors/clean/redemptions.csv | redemptions | `eaebffca2e4a3ac75ad929d9e9e3f6331e02da8034ab38855ecc4858c7390c15` | 60 | 60 | 0 | 0 |
-| rules/rules.yaml | rules | `e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21` | | | | |
-| config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | |
+| File | Role | SHA-256 | Rows read | Rows used | Exact repeats dropped | Identical unkeyed rows kept | Invalid rows |
+|---|---|---|---|---|---|---|---|
+| testdata/vectors/clean/reserves.csv | reserves | `5932ad67332df7319566b0877b81d3391bf61db7818afcc5eb95f7630f8b02f6` | 15 | 15 | 0 | 0 | 0 |
+| testdata/vectors/clean/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
+| testdata/vectors/clean/redemptions.csv | redemptions | `eaebffca2e4a3ac75ad929d9e9e3f6331e02da8034ab38855ecc4858c7390c15` | 60 | 60 | 0 | 0 | 0 |
+| rules/rules.yaml | rules | `e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21` | | | | | |
+| config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
 ## Rules tracked but not checked
 

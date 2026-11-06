@@ -13,7 +13,8 @@
     "fail": 0
   },
   "options": {
-    "allow_invalid_rows": false
+    "allow_invalid_rows": false,
+    "allow_duplicate_rows": false
   },
   "inputs": [
     {
@@ -23,6 +24,7 @@
       "rows_read": 15,
       "rows_used": 15,
       "duplicates": [],
+      "identical_unkeyed_rows_kept": [],
       "invalid_rows": []
     },
     {
@@ -32,6 +34,7 @@
       "rows_read": 1,
       "rows_used": 1,
       "duplicates": [],
+      "identical_unkeyed_rows_kept": [],
       "invalid_rows": []
     },
     {
@@ -41,6 +44,7 @@
       "rows_read": 60,
       "rows_used": 60,
       "duplicates": [],
+      "identical_unkeyed_rows_kept": [],
       "invalid_rows": []
     }
   ],

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/shopspring/decimal"
 )
@@ -22,6 +23,9 @@ const dateLayout = "2006-01-02"
 
 // ReserveRow is one line of the reserves snapshot.
 type ReserveRow struct {
+	// HoldingID optionally identifies the position (for example "HLD-00123"). When set it is
+	// part of the row key, so two otherwise identical positions with different ids are distinct.
+	HoldingID              string
 	AssetType              string
 	Amount                 decimal.Decimal
 	Counterparty           string
@@ -100,6 +104,21 @@ func (r *record) text(name string) string {
 	return v
 }
 
+const maxHoldingIDLen = 128
+
+// holdingID returns the optional, trimmed holding_id ("" when absent). Ids are compared exactly
+// (case-sensitive) so "HLD-1" and "hld-1" are different positions.
+func (r *record) holdingID() string {
+	v := r.opt("holding_id")
+	switch {
+	case len(v) > maxHoldingIDLen:
+		r.fail("holding_id: longer than %d characters", maxHoldingIDLen)
+	case strings.ContainsFunc(v, unicode.IsControl):
+		r.fail("holding_id: must not contain control characters")
+	}
+	return v
+}
+
 func (r *record) amount(name string) decimal.Decimal {
 	v := r.opt(name)
 	d, err := decimal.NewFromString(v)
@@ -156,8 +175,9 @@ func (r *record) boolean(name string) bool {
 
 // ParseReserve validates one reserves record (column name -> cell text).
 func ParseReserve(m map[string]string) (ReserveRow, error) {
-	r := newRecord(m, "asset_type", "amount", "counterparty", "maturity_date", "is_immediately_available")
+	r := newRecord(m, "holding_id", "asset_type", "amount", "counterparty", "maturity_date", "is_immediately_available")
 	row := ReserveRow{
+		HoldingID:              r.holdingID(),
 		AssetType:              r.text("asset_type"),
 		Amount:                 r.amount("amount"),
 		Counterparty:           r.text("counterparty"),
@@ -206,13 +226,19 @@ func (r ReserveRow) RowKey() string {
 	if r.MaturityDate != nil {
 		maturity = r.MaturityDate.Format(dateLayout)
 	}
-	return hashKey(map[string]any{
+	fields := map[string]any{
 		"asset_type":               NormText(r.AssetType),
 		"amount":                   r.Amount.String(),
 		"counterparty":             NormText(r.Counterparty),
 		"maturity_date":            maturity,
 		"is_immediately_available": r.IsImmediatelyAvailable,
-	})
+	}
+	if r.HoldingID != "" {
+		// Only added when present, so keys of unkeyed rows are unchanged (and still match the
+		// Python prototype's).
+		fields["holding_id"] = r.HoldingID
+	}
+	return hashKey(fields)
 }
 
 // RowKey identifies a supply row.

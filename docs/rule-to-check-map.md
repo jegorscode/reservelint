@@ -47,6 +47,16 @@ over-report.
 - Anomalies (transfer before clock start, completed with no transfer time, request after
   `as_of`) are listed on the row; a completed row with no transfer time is measured to `as_of`.
 
+## Data-quality finding: DUPLICATE_ROW_WARNING
+
+Not a regulatory rule (no entry in `rules.yaml`, never capped or failing). Raised when identical
+reserve rows without a `holding_id` were kept as separate positions: observed = number of repeated
+rows, threshold 0, status WARNING, exit code unaffected. Details give the line numbers and the
+amount in the repeated rows, which is how much reserves would be overstated if they are accidental
+repeats. Resolve by adding unique `holding_id` values, or acknowledge with `--allow-duplicate-rows`
+(rows stay counted and listed; the warning is not raised). Rows sharing a `holding_id` and content
+are dropped as repeats; the same id with different content is an invalid row.
+
 ## Unverified rules
 
 A rule with `verified: false` is informational. If its check fails, the finding's status is

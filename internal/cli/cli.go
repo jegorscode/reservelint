@@ -118,6 +118,7 @@ func newCheckCmd() *cobra.Command {
 	f.StringVar(&opts.HolidaysPath, "holidays", "", "holiday calendar; defaults to the rule's holiday_calendar")
 	f.StringVar(&outDir, "out", "report", "report output directory")
 	f.StringVar(&asOfStr, "as-of", "", "snapshot time (RFC 3339); defaults to the latest supply as_of")
+	f.BoolVar(&opts.AllowDuplicateRows, "allow-duplicate-rows", false, "acknowledge identical reserve rows without a holding_id as distinct positions (no DUPLICATE_ROW_WARNING)")
 	f.BoolVar(&opts.AllowInvalidRows, "allow-invalid-rows", false, "continue past invalid rows and report a PARTIAL run (debugging)")
 	for _, name := range []string{"reserves", "supply", "redemptions"} {
 		_ = cmd.MarkFlagRequired(name)

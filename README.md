@@ -35,13 +35,14 @@ Static builds for any platform: `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build 
 | `--holidays` | holiday calendar; defaults to the redemption rule's `holiday_calendar` |
 | `--out` | report directory (default `report`) |
 | `--as-of` | snapshot time, RFC 3339; defaults to the latest supply `as_of` |
+| `--allow-duplicate-rows` | acknowledge identical reserve rows without a `holding_id` as distinct positions (no `DUPLICATE_ROW_WARNING`) |
 | `--allow-invalid-rows` | continue past invalid rows and report a PARTIAL run (debugging) |
 
 ### Exit codes
 
 | Code | Meaning |
 |---|---|
-| 0 | PASS or WARNING |
+| 0 | PASS or WARNING (including capped unverified rules and `DUPLICATE_ROW_WARNING`) |
 | 1 | at least one FAIL finding from a verified rule (the report is still written) |
 | 2 | usage, input, parsing or configuration error (nothing is written) |
 
@@ -64,8 +65,12 @@ pass/fail/warning, and the rule citation. See the [rule-to-check map](docs/rule-
 
 ## Releases
 
+CI compiles **six** targets on every push (darwin, linux and windows, each for amd64 and arm64), but
+the release **packages four**: darwin-arm64, darwin-amd64, linux-amd64 and windows-amd64. Build
+linux-arm64 or windows-arm64 yourself with the command above.
+
 Pushing a tag such as `v1.0.0` runs `.github/workflows/release.yml`: it vets and tests, builds static
-binaries for darwin-arm64, darwin-amd64, linux-amd64 and windows-amd64, smoke-tests the Linux one
+binaries for those four targets, smoke-tests the Linux one
 (version, exit codes 0/1/2, disclaimer), and attaches the archives plus `SHA256SUMS.txt` to a GitHub
 release (tags with a suffix, like `v1.0.0-rc.1`, are marked pre-release). Each archive also holds
 `rules/rules.yaml`, `config/holidays.yaml` and the docs; run the binary from the unpacked folder so
@@ -75,13 +80,30 @@ the default paths resolve. Verify a download with `sha256sum -c SHA256SUMS.txt`.
 
 | File | Columns (`*` required) |
 |---|---|
-| reserves | `asset_type*`, `amount*` (> 0), `counterparty*`, `maturity_date`, `is_immediately_available*` |
+| reserves | `holding_id` (optional), `asset_type*`, `amount*` (> 0), `counterparty*`, `maturity_date`, `is_immediately_available*` |
 | supply | `as_of*` (RFC 3339 with offset), `circulating_supply*` (> 0) |
 | redemptions | `request_ts*`, `onboarded_ts`, `transfer_initiated_ts`, `amount*`, `status*` (`pending`, `completed`, `rejected`, `cancelled`) |
 
-Timestamps must carry a UTC offset. Identical rows (ignoring case, spacing and number
-formatting) are counted once and reported as duplicates, so loading is idempotent.
-Two genuinely identical reserve lines would therefore be merged.
+Timestamps must carry a UTC offset.
+
+### Duplicates and `holding_id`
+
+Two real positions (say, two $50M deposits at one bank) can match in every field, so identical
+content alone is not proof of a repeated line. Reserve rows are therefore identified like this:
+
+- **With a `holding_id`** (for example `HLD-00123`): the id is part of the row's identity.
+  Identical content with different ids is two positions and both count. The same id and same
+  content again is a repeated line: it is dropped, counted once and reported (loading stays
+  idempotent). The same id with *different* content is an invalid row.
+- **Without a `holding_id`**: identical lines are ambiguous. They are **kept** as separate
+  positions, never silently dropped, and the run reports a `DUPLICATE_ROW_WARNING` finding
+  (in `report.md`, `findings.csv`, `report.json`) with the line numbers and the amount involved.
+  This is a WARNING (exit 0). If the repeats are accidental, total reserves are overstated by that
+  amount, so give every position a unique `holding_id`. `--allow-duplicate-rows` acknowledges the
+  rows as distinct positions: they are still kept and listed, but no warning is raised.
+
+Ids are compared exactly after trimming (case-sensitive). Supply and redemption rows have no ids:
+an exact repeat is dropped and reported.
 
 ## Principles
 
@@ -98,6 +120,9 @@ Two genuinely identical reserve lines would therefore be merged.
 - Rule text for verified rules comes from the final-rule preamble, not the codified regulation.
 - Counterparty concentration ignores the rule's exceptions and can over-report.
 - `is_immediately_available` is trusted as supplied.
+- Identical reserve rows without a `holding_id` are kept (and warned about), so accidental repeats
+  can overstate reserves until a `holding_id` is supplied; that is the cautious trade-off against
+  merging real positions and understating reserves.
 - Holiday calendar covers 2026–2027 and is unverified.
 - Stress testing and weekly/quarterly reporting rules are tracked but not checked.
 - Out of scope: AML/sanctions checks, a UI, blockchain RPC calls (supply comes from a file).
@@ -124,8 +149,9 @@ Two genuinely identical reserve lines would therefore be merged.
 
 ```bash
 go vet ./... && go test ./...
+go test -race ./...                 # needs cgo (a C compiler); CI runs it on Linux
 go test ./internal/runner -update   # after an intended report format change; review the diff
 ```
 
-CI (GitHub Actions) runs vet and tests on Linux, Windows and macOS, cross-builds six
-platform targets, and checks that the shared test vectors still match the Python prototype.
+CI (GitHub Actions) runs vet and tests on Linux, Windows and macOS (plus the race detector on
+Linux), cross-builds the same six platform targets, and checks that the shared test vectors still match the Python prototype.

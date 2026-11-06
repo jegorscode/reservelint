@@ -143,15 +143,117 @@ func TestCleanDataPassesWithCaveats(t *testing.T) {
 func TestViolationsFail(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("violations"))
-	// Three verified rules fail; the unverified coverage rule is capped at warning.
-	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 3 || rep.Counts.Warning != 1 {
+	// Three verified rules fail; the unverified coverage rule is capped at warning, and the
+	// vector data repeats one unkeyed line, which raises DUPLICATE_ROW_WARNING.
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 3 || rep.Counts.Warning != 2 {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
-	if rep.Inputs[0].DuplicateCount() != 1 || rep.Inputs[0].RowsRead != 16 || rep.Inputs[0].RowsUsed != 15 {
-		t.Errorf("duplicate accounting wrong: %+v", rep.Inputs[0])
+	if in := rep.Inputs[0]; in.DuplicateCount() != 0 || in.IdenticalUnkeyedCount() != 1 || in.RowsRead != 16 || in.RowsUsed != 16 {
+		t.Errorf("duplicate accounting wrong: %+v", in)
+	}
+	last := rep.Findings[len(rep.Findings)-1]
+	if last.RuleID != runner.DuplicateRowWarning || last.Status != "warning" || last.Details["amount_in_repeated_rows"] != "1045000" {
+		t.Errorf("duplicate warning finding: %+v", last)
 	}
 	if rep.Redemption == nil || rep.Redemption.Summary.Breach < 2 || len(rep.Redemption.Items) == 0 {
 		t.Errorf("redemption section: %+v", rep.Redemption)
+	}
+}
+
+// ---- holding_id and duplicate handling -------------------------------------------------
+
+const keyedHeader = "holding_id,asset_type,amount,counterparty,maturity_date,is_immediately_available\n"
+
+// coverageOnly is a rules file with just the coverage rule, so findings are easy to read.
+func coverageOnly(t *testing.T) string {
+	t.Helper()
+	return writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n  - id: T-COV\n    check: coverage\n    description: d\n    source: s\n    verified: true\n    parameters:\n      min_coverage_ratio: 1.0\n")
+}
+
+func totalReserves(t *testing.T, rep *report.Report) string {
+	t.Helper()
+	for _, f := range rep.Findings {
+		if f.Check == "coverage" {
+			return f.Details["total_reserves"].(string)
+		}
+	}
+	t.Fatal("no coverage finding")
+	return ""
+}
+
+// Two legitimate $50M deposits at one bank, identical except for holding_id, against $100M of
+// supply: both must count, so coverage is exactly 100% and passes.
+func TestTwoIdenticalDepositsWithHoldingIDsSumToFullCoverage(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean") // supply is 100,000,000
+	opts.RulesPath = coverageOnly(t)
+	opts.ReservesPath = writeFile(t, "r.csv", keyedHeader+
+		"HLD-00001,cash_deposit,50000000.00,Bank A,,true\n"+
+		"HLD-00002,cash_deposit,50000000.00,Bank A,,true\n")
+	rep := run(t, opts)
+	if got := totalReserves(t, rep); got != "100000000" {
+		t.Fatalf("total reserves = %s, want both deposits counted", got)
+	}
+	if rep.Findings[0].Status != "pass" || rep.Status != report.StatusPass || len(rep.Findings) != 1 {
+		t.Fatalf("%s findings %+v", rep.Status, rep.Findings)
+	}
+	if in := rep.Inputs[0]; in.RowsUsed != 2 || in.DuplicateCount() != 0 || in.IdenticalUnkeyedCount() != 0 {
+		t.Errorf("input accounting: %+v", in)
+	}
+}
+
+func TestUnkeyedIdenticalDepositsAreKeptWithAWarning(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean")
+	opts.RulesPath = coverageOnly(t)
+	opts.ReservesPath = writeFile(t, "r.csv", "asset_type,amount,counterparty,maturity_date,is_immediately_available\n"+
+		"cash_deposit,50000000.00,Bank A,,true\ncash_deposit,50000000.00,Bank A,,true\n")
+	rep := run(t, opts)
+	if got := totalReserves(t, rep); got != "100000000" {
+		t.Fatalf("total reserves = %s: unkeyed identical rows must not be dropped", got)
+	}
+	if rep.Status != report.StatusWarning || rep.ExitCode != 0 || rep.Counts.Warning != 1 || rep.Counts.Fail != 0 {
+		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
+	}
+	w := rep.Findings[len(rep.Findings)-1]
+	if w.RuleID != "DUPLICATE_ROW_WARNING" || w.Details["amount_in_repeated_rows"] != "50000000" || w.Details["groups"] != "line 2 repeated at 3" {
+		t.Fatalf("warning: %+v", w)
+	}
+	csvData, _ := report.FindingsCSV(rep)
+	md := string(report.Markdown(rep))
+	if !strings.Contains(string(csvData), "DUPLICATE_ROW_WARNING") || !strings.Contains(md, "DUPLICATE_ROW_WARNING") || !strings.Contains(md, "Identical rows without a holding_id") {
+		t.Error("warning should appear in findings.csv and report.md")
+	}
+}
+
+func TestAllowDuplicateRowsAcknowledgesWithoutWarning(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean")
+	opts.RulesPath = coverageOnly(t)
+	opts.ReservesPath = writeFile(t, "r.csv", "asset_type,amount,counterparty,maturity_date,is_immediately_available\n"+
+		"cash_deposit,50000000.00,Bank A,,true\ncash_deposit,50000000.00,Bank A,,true\n")
+	opts.AllowDuplicateRows = true
+	rep := run(t, opts)
+	if got := totalReserves(t, rep); got != "100000000" {
+		t.Fatalf("total reserves = %s", got)
+	}
+	if rep.Status != report.StatusPass || len(rep.Findings) != 1 || !rep.Options.AllowDuplicateRows || rep.Inputs[0].IdenticalUnkeyedCount() != 1 {
+		t.Fatalf("%s findings %d options %+v input %+v", rep.Status, len(rep.Findings), rep.Options, rep.Inputs[0])
+	}
+	if !strings.Contains(strings.Join(rep.Caveats, "\n"), "--allow-duplicate-rows") {
+		t.Errorf("caveats should record the acknowledgement: %v", rep.Caveats)
+	}
+}
+
+func TestConflictingHoldingIDIsAnInvalidRow(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean")
+	opts.ReservesPath = writeFile(t, "r.csv", keyedHeader+
+		"HLD-00001,cash_deposit,1.00,Bank A,,true\nHLD-00001,cash_deposit,2.00,Bank A,,true\n")
+	_, err := runner.Run(opts)
+	var ie *runner.InputError
+	if !errors.As(err, &ie) || !strings.Contains(err.Error(), "already used") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
@@ -332,7 +434,7 @@ func TestAuditRecordHashesMatchFilesOnDisk(t *testing.T) {
 		}
 	}
 	if audit.ToolVersion == "" || audit.Result.Status != report.StatusFail || audit.Result.ExitCode != 1 ||
-		len(audit.Result.Findings) != 4 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 1 {
+		len(audit.Result.Findings) != 5 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 1 {
 		t.Errorf("audit result: %+v", audit.Result)
 	}
 	if !audit.Timestamp.Equal(fixedNow) || !strings.Contains(audit.Disclaimer, "Not legal advice") {

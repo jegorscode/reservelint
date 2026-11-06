@@ -183,6 +183,43 @@ func TestFindingCarriesRuleMetadata(t *testing.T) {
 	}
 }
 
+// ---- regression: legitimate identical positions ----------------------------------------
+
+// Two $50M deposits at one bank that differ only by holding_id must both count toward reserves.
+// Before holding_id existed they were merged, understating reserves and failing coverage.
+func TestIdenticalDepositsWithDistinctHoldingIDsBothCountTowardCoverage(t *testing.T) {
+	m := mustFinding(t)
+	path := filepath.Join(t.TempDir(), "r.csv")
+	body := "holding_id,asset_type,amount,counterparty,is_immediately_available\n" +
+		"HLD-00001,cash_deposit,50000000.00,Bank A,true\nHLD-00002,cash_deposit,50000000.00,Bank A,true\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ingest.LoadReserves(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := m(engine.CheckCoverage(cov, res.Rows, supply("100000000")))
+	if !f.Passed || !f.Observed.Equal(dec("1")) || f.Details["total_reserves"] != "100000000" {
+		t.Fatalf("both deposits should count: %+v", f)
+	}
+
+	// The old behaviour, for contrast: merging them halves reserves and the check fails.
+	legacy, _ := ingest.LoadReservesWith(path, ingest.Options{DropIdenticalUnkeyed: true})
+	if len(legacy.Rows) != 2 {
+		t.Fatalf("keyed rows must never be merged, even in legacy mode: %d rows", len(legacy.Rows))
+	}
+	unkeyed := "asset_type,amount,counterparty,is_immediately_available\ncash_deposit,50000000.00,Bank A,true\ncash_deposit,50000000.00,Bank A,true\n"
+	if err := os.WriteFile(path, []byte(unkeyed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	legacy, _ = ingest.LoadReservesWith(path, ingest.Options{DropIdenticalUnkeyed: true})
+	f = m(engine.CheckCoverage(cov, legacy.Rows, supply("100000000")))
+	if f.Passed {
+		t.Fatal("legacy merge of unkeyed rows should understate reserves")
+	}
+}
+
 // ---- parity with the Python prototype --------------------------------------------------
 
 type expected struct {
@@ -217,7 +254,8 @@ func TestParityWithPythonVectors(t *testing.T) {
 	}
 	for name, sc := range want.Scenarios {
 		dir := filepath.Join(root, "testdata", "vectors", name)
-		reserves, err := ingest.LoadReserves(filepath.Join(dir, "reserves.csv"))
+		// The Python prototype dropped identical rows; reproduce that so numbers can be compared.
+		reserves, err := ingest.LoadReservesWith(filepath.Join(dir, "reserves.csv"), ingest.Options{DropIdenticalUnkeyed: true})
 		if err != nil {
 			t.Fatal(err)
 		}

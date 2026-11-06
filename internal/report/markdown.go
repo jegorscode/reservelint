@@ -39,8 +39,11 @@ func yesNo(b bool) string {
 
 // formatValue renders a finding value for people: percentages for ratios, days for timing.
 func formatValue(check string, d decimal.Decimal) string {
-	if check == redemptionCheck {
+	switch check {
+	case redemptionCheck:
 		return d.String() + " business days"
+	case "duplicate_rows":
+		return d.String() + " rows"
 	}
 	return d.Mul(decimal.NewFromInt(100)).Round(4).String() + "%"
 }
@@ -125,21 +128,32 @@ func Markdown(r *Report) []byte {
 		writeRedemption(&b, r.Redemption)
 	}
 
-	w("## Input integrity\n\n| File | Role | SHA-256 | Rows read | Rows used | Duplicates ignored | Invalid rows |\n|---|---|---|---|---|---|---|\n")
+	w("## Input integrity\n\n| File | Role | SHA-256 | Rows read | Rows used | Exact repeats dropped | Identical unkeyed rows kept | Invalid rows |\n|---|---|---|---|---|---|---|---|\n")
 	for _, in := range r.Inputs {
-		w("| %s | %s | `%s` | %d | %d | %d | %d |\n", cell(in.Path), in.Role, in.SHA256, in.RowsRead, in.RowsUsed, in.DuplicateCount(), len(in.InvalidRows))
+		w("| %s | %s | `%s` | %d | %d | %d | %d | %d |\n", cell(in.Path), in.Role, in.SHA256, in.RowsRead, in.RowsUsed, in.DuplicateCount(), in.IdenticalUnkeyedCount(), len(in.InvalidRows))
 	}
-	w("| %s | rules | `%s` | | | | |\n", cell(r.Rules.Path), r.Rules.SHA256)
+	w("| %s | rules | `%s` | | | | | |\n", cell(r.Rules.Path), r.Rules.SHA256)
 	if r.Calendar != nil {
-		w("| %s | holiday calendar | `%s` | | | | |\n", cell(r.Calendar.Path), r.Calendar.SHA256)
+		w("| %s | holiday calendar | `%s` | | | | | |\n", cell(r.Calendar.Path), r.Calendar.SHA256)
 	}
 	b.WriteString("\n")
 	for _, in := range r.Inputs {
 		if len(in.Duplicates) > 0 {
-			w("Duplicate rows in `%s` (counted once; positions are line numbers or item indexes):\n\n", in.Path)
+			w("Exact repeats in `%s` (dropped, counted once; positions are line numbers or item indexes):\n\n", in.Path)
 			for i, d := range in.Duplicates {
 				if i == maxListed {
 					w("- ... and %d more (see report.json)\n", len(in.Duplicates)-maxListed)
+					break
+				}
+				w("- first at %d, repeated at %s\n", d.FirstPosition, positions(d.RepeatPositions))
+			}
+			b.WriteString("\n")
+		}
+		if len(in.IdenticalUnkeyed) > 0 {
+			w("Identical rows without a holding_id in `%s` (kept as separate positions and counted):\n\n", in.Path)
+			for i, d := range in.IdenticalUnkeyed {
+				if i == maxListed {
+					w("- ... and %d more (see report.json)\n", len(in.IdenticalUnkeyed)-maxListed)
 					break
 				}
 				w("- first at %d, repeated at %s\n", d.FirstPosition, positions(d.RepeatPositions))

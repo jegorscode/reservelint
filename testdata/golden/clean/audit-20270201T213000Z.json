@@ -4,7 +4,8 @@
   "tool_version": "0.1.0-dev",
   "disclaimer": "Monitoring and reporting aid. Not legal advice. Not an official OCC form.",
   "options": {
-    "allow_invalid_rows": false
+    "allow_invalid_rows": false,
+    "allow_duplicate_rows": false
   },
   "as_of": "2027-02-01T21:00:00Z",
   "inputs": [
@@ -38,7 +39,7 @@
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "ed194024055a8a333a57f7d2319ccb528269c97b2f447becf0bcd512c70430bf"
+      "sha256": "4147a306fd2ccfcd82d1fa1038502ce029f5ef8574d32f3299339a3a4f11d51d"
     },
     {
       "role": "findings.csv",
@@ -48,7 +49,7 @@
     {
       "role": "report.json",
       "path": "report.json",
-      "sha256": "b601d670475269c37d607b7f8610084f45a8eb47e236d4c772fc6831a6c34ea4"
+      "sha256": "fc829ffcf30897afb3b70d200f80b7c67375ef6e49a58f67ecf832c0cd7a21dc"
     }
   ],
   "result": {

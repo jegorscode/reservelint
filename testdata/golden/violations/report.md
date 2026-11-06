@@ -2,7 +2,7 @@
 
 > Monitoring and reporting aid. Not legal advice. Not an official OCC form.
 
-**Overall: FAIL** (3 fail, 1 warning, 0 pass)
+**Overall: FAIL** (3 fail, 2 warning, 0 pass)
 
 - Generated: 2027-02-01T21:30:00Z by reservelint 0.1.0-dev
 - Snapshot as of: 2027-02-01T21:00:00Z
@@ -12,10 +12,11 @@
 
 | Rule | Check | Status | Observed | Requirement | Rule verified |
 |---|---|---|---|---|---|
-| RW-COV-001 | coverage | WARNING (capped from FAIL) | 95% | at least 100% | NO |
-| RW-LIQ-001 | liquidity_floor | FAIL | 2% | at least 5% | yes |
-| RW-CON-001 | counterparty_concentration | FAIL | 55% | at most 40% | yes |
+| RW-COV-001 | coverage | WARNING (capped from FAIL) | 96.045% | at least 100% | NO |
+| RW-LIQ-001 | liquidity_floor | FAIL | 3.0663% | at least 5% | yes |
+| RW-CON-001 | counterparty_concentration | FAIL | 55.4896% | at most 40% | yes |
 | RW-RED-001 | redemption_timing | FAIL | 8 business days | at most 2 business days | yes |
+| DUPLICATE_ROW_WARNING | duplicate_rows | WARNING | 1 rows | at most 0 rows | yes |
 
 ### RW-COV-001: coverage - WARNING (capped from FAIL)
 
@@ -23,43 +24,43 @@ Total reserves must be at least the circulating supply.
 
 > The check result was **FAIL**, but this rule is unverified, so it is capped at WARNING and does not fail the run.
 
-- Observed: 95%; required at least 100%
+- Observed: 96.045%; required at least 100%
 - Citation: UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).
 - Rule verified: NO
 - Rule notes: Confirm whether the ratio is on face value, market value, or another measure.
 - circulating_supply: 100000000
-- shortfall: 5000000
+- shortfall: 3955000
 - supply_as_of: 2027-02-01T21:00:00Z
-- total_reserves: 95000000
+- total_reserves: 96045000
 
 ### RW-LIQ-001: liquidity_floor - FAIL
 
 At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.
 
-- Observed: 2%; required at least 5%
+- Observed: 3.0663%; required at least 5%
 - Citation: OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble).
 - Rule verified: yes
 - Rule notes: Figure taken from preamble text, not the codified regulation text; re-check against the codified text. The input flag is_immediately_available must be set only for assets in the categories above. The weekly-liquidity (5 business days) requirement was dropped in the final rule, so none is modelled.
-- immediately_available: 1900000
-- total_reserves: 95000000
+- immediately_available: 2945000
+- total_reserves: 96045000
 
 ### RW-CON-001: counterparty_concentration - FAIL
 
 Exposure to any one counterparty may not exceed a maximum share of reserve assets.
 
-- Observed: 55%; required at most 40%
+- Observed: 55.4896%; required at most 40%
 - Citation: OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble).
 - Rule verified: yes
 - Rule notes: The rule is "subject to certain exceptions" that are NOT modelled; the check applies the limit to every counterparty, so it can over-report. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets. Per-institution holdings and weighted average maturity limits were dropped from the final rule.
 - shares:
-  - Synthetic Bank Alpha: 0.55
-  - Synthetic Bank Beta: 0.1
-  - Synthetic Bank Epsilon: 0.15
-  - Synthetic Custody Gamma: 0.1
-  - Synthetic Trust Delta: 0.1
+  - Synthetic Bank Alpha: 0.5548961424332344
+  - Synthetic Bank Beta: 0.0989119683481701
+  - Synthetic Bank Epsilon: 0.1483679525222552
+  - Synthetic Custody Gamma: 0.0989119683481701
+  - Synthetic Trust Delta: 0.0989119683481701
 - top_counterparty: Synthetic Bank Alpha
-- top_counterparty_amount: 52250000
-- total_reserves: 95000000
+- top_counterparty_amount: 53295000
+- total_reserves: 96045000
 
 ### RW-RED-001: redemption_timing - FAIL
 
@@ -90,6 +91,20 @@ A timely redemption may not exceed a maximum number of business days following t
 - warning_amount: 0
 - warnings: 0
 
+### DUPLICATE_ROW_WARNING: duplicate_rows - WARNING
+
+Identical reserve rows without a holding_id were kept as separate positions; they may be repeated lines.
+
+- Observed: 1 rows; required at most 0 rows
+- Citation: Data-quality check, not a regulatory rule.
+- Rule verified: yes
+- amount_in_repeated_rows: 1045000
+- effect: These rows are counted in total reserves. If they are accidental repeats, reserves are overstated by amount_in_repeated_rows.
+- file: testdata/vectors/violations/reserves.csv
+- groups: line 2 repeated at 17
+- how_to_resolve: Give each position a unique holding_id, or pass --allow-duplicate-rows to acknowledge them as distinct positions.
+- repeated_rows_kept: 1
+
 ## Redemption timing
 
 | Requests | Evaluated | OK | Warning | Breach | Rejected | Cancelled | Still open | Max business days used |
@@ -116,15 +131,15 @@ Requests needing attention (clock start is the later of request and onboarding; 
 
 ## Input integrity
 
-| File | Role | SHA-256 | Rows read | Rows used | Duplicates ignored | Invalid rows |
-|---|---|---|---|---|---|---|
-| testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 15 | 1 | 0 |
-| testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 |
-| testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 |
-| rules/rules.yaml | rules | `e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21` | | | | |
-| config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | |
+| File | Role | SHA-256 | Rows read | Rows used | Exact repeats dropped | Identical unkeyed rows kept | Invalid rows |
+|---|---|---|---|---|---|---|---|
+| testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 16 | 0 | 1 | 0 |
+| testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
+| testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
+| rules/rules.yaml | rules | `e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21` | | | | | |
+| config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
-Duplicate rows in `testdata/vectors/violations/reserves.csv` (counted once; positions are line numbers or item indexes):
+Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
 
 - first at 2, repeated at 17
 

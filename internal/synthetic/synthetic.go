@@ -147,6 +147,13 @@ func buildRedemptions(r *rand.Rand, violations bool) []model.RedemptionRow {
 	return rows
 }
 
+// assignHoldingIDs gives every reserve row a sequential id such as HLD-00001.
+func assignHoldingIDs(rows []model.ReserveRow) {
+	for i := range rows {
+		rows[i].HoldingID = fmt.Sprintf("HLD-%05d", i+1)
+	}
+}
+
 // Build returns the datasets of a scenario ("clean" or "violations") for a seed.
 func Build(name string, seed int64) (Data, error) {
 	r := newRNG(seed, name)
@@ -158,9 +165,11 @@ func Build(name string, seed int64) (Data, error) {
 			weights[i] = uniform(r, 0.85, 1.15)
 		}
 		d.Reserves = buildReserves(r, supplyCents*102/100, weights, 0.20)
+		assignHoldingIDs(d.Reserves)
 	case Violations:
 		d.Reserves = buildReserves(r, supplyCents*95/100, []float64{5.5, 1, 1, 1, 1.5}, 0.02)
-		d.Reserves = append(d.Reserves, d.Reserves[0]) // exact duplicate of a small cash row
+		assignHoldingIDs(d.Reserves)
+		d.Reserves = append(d.Reserves, d.Reserves[0]) // the same line twice: a true duplicate (same holding_id)
 	default:
 		return Data{}, fmt.Errorf("unknown scenario %q", name)
 	}
@@ -193,13 +202,13 @@ func boolText(b bool) string {
 }
 
 func (d Data) tables() map[string]table {
-	res := table{header: []string{"asset_type", "amount", "counterparty", "maturity_date", "is_immediately_available"}}
+	res := table{header: []string{"holding_id", "asset_type", "amount", "counterparty", "maturity_date", "is_immediately_available"}}
 	for _, r := range d.Reserves {
 		maturity := ""
 		if r.MaturityDate != nil {
 			maturity = r.MaturityDate.Format("2006-01-02")
 		}
-		res.rows = append(res.rows, []string{r.AssetType, r.Amount.StringFixed(2), r.Counterparty, maturity, boolText(r.IsImmediatelyAvailable)})
+		res.rows = append(res.rows, []string{r.HoldingID, r.AssetType, r.Amount.StringFixed(2), r.Counterparty, maturity, boolText(r.IsImmediatelyAvailable)})
 	}
 	sup := table{header: []string{"as_of", "circulating_supply"}}
 	for _, r := range d.Supply {
@@ -250,7 +259,7 @@ var manifestNotes = map[string][]string{
 		"Very little of the reserve pool is flagged immediately available.",
 		"One counterparty holds more than half of reserves.",
 		"Several redemptions took many days; two old requests have no transfer yet.",
-		"One reserve row appears twice (duplicate detection).",
+		"One reserve line appears twice with the same holding_id (true duplicate, dropped and reported).",
 	},
 	"both": {"Onboarding precedes every request, and every transfer follows its request."},
 }

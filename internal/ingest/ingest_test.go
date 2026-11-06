@@ -4,9 +4,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jegorscode/reservelint/internal/ingest"
+	"github.com/jegorscode/reservelint/internal/model"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -76,10 +79,56 @@ func TestJSONBadItems(t *testing.T) {
 	}
 }
 
-func TestDuplicatesAreNotDoubleCountedAndAreReported(t *testing.T) {
+// ---- duplicate handling ----------------------------------------------------------------
+
+const keyedHeader = "holding_id,asset_type,amount,counterparty,maturity_date,is_immediately_available\n"
+
+func total(rows []model.ReserveRow) decimal.Decimal {
+	sum := decimal.Zero
+	for _, r := range rows {
+		sum = sum.Add(r.Amount)
+	}
+	return sum
+}
+
+// The regression this feature exists for: two legitimate $50M deposits at one bank, identical in
+// every field except their holding_id, must both count.
+func TestIdenticalDepositsWithDistinctHoldingIDsBothCount(t *testing.T) {
+	res, err := ingest.LoadReserves(write(t, "r.csv", keyedHeader+
+		"HLD-00001,cash_deposit,50000000.00,Bank A,,true\n"+
+		"HLD-00002,cash_deposit,50000000.00,Bank A,,true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Rows) != 2 || res.DuplicateCount() != 0 || res.AmbiguousCount() != 0 || len(res.Errors) != 0 {
+		t.Fatalf("%+v", res)
+	}
+	if !total(res.Rows).Equal(decimal.RequireFromString("100000000")) {
+		t.Fatalf("total = %s", total(res.Rows))
+	}
+}
+
+func TestIdenticalUnkeyedRowsAreKeptAndReportedAsAmbiguous(t *testing.T) {
 	res, _ := ingest.LoadReserves(write(t, "r.csv", header+rowA+rowB+rowA+rowA))
-	if len(res.Rows) != 2 || res.DuplicateCount() != 2 {
-		t.Fatalf("rows %d dupes %d", len(res.Rows), res.DuplicateCount())
+	if len(res.Rows) != 4 || res.DuplicateCount() != 0 || res.AmbiguousCount() != 2 {
+		t.Fatalf("rows %d dropped %d ambiguous %d", len(res.Rows), res.DuplicateCount(), res.AmbiguousCount())
+	}
+	g := res.Ambiguous[0]
+	if g.FirstPosition != 2 || len(g.RepeatPositions) != 2 || g.RepeatPositions[0] != 4 || g.RepeatPositions[1] != 5 {
+		t.Fatalf("%+v", g)
+	}
+	if len(g.RepeatRowIndexes) != 2 || g.RepeatRowIndexes[0] != 2 || g.RepeatRowIndexes[1] != 3 {
+		t.Fatalf("row indexes %+v", g.RepeatRowIndexes)
+	}
+	if !total(res.Rows).Equal(decimal.RequireFromString("350")) {
+		t.Fatalf("total = %s", total(res.Rows))
+	}
+}
+
+func TestLegacyModeDropsIdenticalUnkeyedRows(t *testing.T) {
+	res, _ := ingest.LoadReservesWith(write(t, "r.csv", header+rowA+rowB+rowA+rowA), ingest.Options{DropIdenticalUnkeyed: true})
+	if len(res.Rows) != 2 || res.DuplicateCount() != 2 || res.AmbiguousCount() != 0 {
+		t.Fatalf("rows %d dropped %d", len(res.Rows), res.DuplicateCount())
 	}
 	d := res.Duplicates[0]
 	if d.FirstPosition != 2 || len(d.RepeatPositions) != 2 || d.RepeatPositions[0] != 4 || d.RepeatPositions[1] != 5 {
@@ -87,23 +136,71 @@ func TestDuplicatesAreNotDoubleCountedAndAreReported(t *testing.T) {
 	}
 }
 
-func TestIdempotentOnRepeatedContent(t *testing.T) {
-	once, _ := ingest.LoadReserves(write(t, "a.csv", header+rowA+rowB))
-	twice, _ := ingest.LoadReserves(write(t, "b.csv", header+rowA+rowB+rowA+rowB))
-	if len(once.Rows) != len(twice.Rows) || twice.DuplicateCount() != 2 {
-		t.Fatal("not idempotent")
+func TestSameHoldingIDAndContentIsADroppedRepeat(t *testing.T) {
+	line := "HLD-00001,cash_deposit,100.00,Bank A,,true\n"
+	once, _ := ingest.LoadReserves(write(t, "a.csv", keyedHeader+line))
+	twice, _ := ingest.LoadReserves(write(t, "b.csv", keyedHeader+line+line))
+	if len(once.Rows) != 1 || len(twice.Rows) != 1 || twice.DuplicateCount() != 1 || twice.AmbiguousCount() != 0 {
+		t.Fatalf("rows %d dropped %d", len(twice.Rows), twice.DuplicateCount())
 	}
-	for i := range once.Rows {
-		if once.Rows[i].RowKey() != twice.Rows[i].RowKey() {
-			t.Fatalf("row %d differs", i)
-		}
+	if once.Rows[0].RowKey() != twice.Rows[0].RowKey() {
+		t.Error("loading is not idempotent")
+	}
+}
+
+func TestSameHoldingIDWithDifferentContentIsAnError(t *testing.T) {
+	res, _ := ingest.LoadReserves(write(t, "r.csv", keyedHeader+
+		"HLD-00001,cash_deposit,100.00,Bank A,,true\n"+
+		"HLD-00001,cash_deposit,999.00,Bank A,,true\n"))
+	if len(res.Rows) != 1 || len(res.Errors) != 1 || res.Errors[0].Position != 3 || !strings.Contains(res.Errors[0].Message, "already used at 2") {
+		t.Fatalf("%+v", res)
+	}
+}
+
+func TestKeyedAndUnkeyedRowsNeverCollide(t *testing.T) {
+	res, _ := ingest.LoadReserves(write(t, "r.csv", keyedHeader+
+		"HLD-00001,cash_deposit,100.00,Bank A,,true\n"+
+		",cash_deposit,100.00,Bank A,,true\n"))
+	if len(res.Rows) != 2 || res.DuplicateCount() != 0 || res.AmbiguousCount() != 0 {
+		t.Fatalf("%+v", res)
+	}
+}
+
+func TestHoldingIDTrimmedBlankIsAbsentAndCaseSensitive(t *testing.T) {
+	res, _ := ingest.LoadReserves(write(t, "r.csv", keyedHeader+
+		"  HLD-1 ,cash_deposit,100,Bank A,,true\n"+
+		"hld-1,cash_deposit,100,Bank A,,true\n"+
+		"   ,cash_deposit,100,Bank A,,true\n"))
+	if len(res.Rows) != 3 || res.Rows[0].HoldingID != "HLD-1" || res.Rows[2].HoldingID != "" || res.AmbiguousCount() != 0 {
+		t.Fatalf("%+v", res.Rows)
+	}
+}
+
+func TestHoldingIDInJSON(t *testing.T) {
+	doc := `[{"holding_id":"HLD-1","asset_type":"x","amount":50000000,"counterparty":"A","is_immediately_available":true},
+	         {"holding_id":"HLD-2","asset_type":"x","amount":50000000,"counterparty":"A","is_immediately_available":true},
+	         {"holding_id":42,"asset_type":"x","amount":1,"counterparty":"B","is_immediately_available":false}]`
+	res, err := ingest.LoadReserves(write(t, "r.json", doc))
+	if err != nil || len(res.Rows) != 3 || res.Rows[2].HoldingID != "42" || !total(res.Rows).Equal(decimal.RequireFromString("100000001")) {
+		t.Fatalf("%v %+v", err, res)
+	}
+}
+
+func TestSupplyAndRedemptionRepeatsAreStillDropped(t *testing.T) {
+	sup, _ := ingest.LoadSupply(write(t, "s.csv", "as_of,circulating_supply\n2027-02-01T00:00:00Z,10\n2027-02-01T00:00:00Z,10\n"))
+	if len(sup.Rows) != 1 || sup.DuplicateCount() != 1 || sup.AmbiguousCount() != 0 {
+		t.Fatalf("%+v", sup)
 	}
 }
 
 func TestDuplicateDetectionIgnoresFormatting(t *testing.T) {
-	res, _ := ingest.LoadReserves(write(t, "r.csv", header+rowA+"cash_deposit,100,  bank a ,,TRUE\n"))
+	res, _ := ingest.LoadReservesWith(write(t, "r.csv", header+rowA+"cash_deposit,100,  bank a ,,TRUE\n"), ingest.Options{DropIdenticalUnkeyed: true})
 	if len(res.Rows) != 1 || res.DuplicateCount() != 1 {
 		t.Fatalf("rows %d dupes %d", len(res.Rows), res.DuplicateCount())
+	}
+	res, _ = ingest.LoadReserves(write(t, "r2.csv", header+rowA+"cash_deposit,100,  bank a ,,TRUE\n"))
+	if len(res.Rows) != 2 || res.AmbiguousCount() != 1 {
+		t.Fatalf("default mode: rows %d ambiguous %d", len(res.Rows), res.AmbiguousCount())
 	}
 }
 

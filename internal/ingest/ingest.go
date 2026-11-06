@@ -1,9 +1,17 @@
-// Package ingest loads CSV/JSON files into validated, de-duplicated rows.
+// Package ingest loads CSV/JSON files into validated rows and applies explicit duplicate rules.
 //
-// Idempotency: rows are keyed by RowKey(). The first occurrence is kept; later copies are
-// reported in Result.Duplicates and never counted, so loading a file, or the same file
-// concatenated with itself, yields the same rows. Invalid rows are collected in Result.Errors
-// with their position instead of being silently dropped, so callers decide whether to go on.
+// Reserve positions can legitimately repeat: two cash deposits at one bank can share every
+// field. So identity depends on an optional holding_id:
+//
+//   - With a holding_id: the id is part of the row key. A line repeated exactly (same id, same
+//     content) is a true duplicate: it is dropped and reported, which keeps loading idempotent.
+//     The same id with different content is an error, never a silent choice.
+//   - Without a holding_id: identical lines are ambiguous. They are KEPT as separate positions
+//     (never silently dropped) and reported in Result.Ambiguous so callers can warn.
+//     Options.DropIdenticalUnkeyed restores the old drop-and-report behaviour.
+//
+// Supply and redemption rows have no ids: exact repeats are dropped and reported. Invalid rows
+// are collected in Result.Errors with their position, so callers decide whether to go on.
 package ingest
 
 import (
@@ -36,19 +44,41 @@ type Duplicate struct {
 	Key             string
 	FirstPosition   int
 	RepeatPositions []int
+	// RepeatRowIndexes are, for Result.Ambiguous groups only, the indexes in Result.Rows of the
+	// repeated rows that were kept.
+	RepeatRowIndexes []int
+}
+
+// Options tunes duplicate handling.
+type Options struct {
+	// DropIdenticalUnkeyed drops identical rows that have no holding_id (reporting them in
+	// Result.Duplicates) instead of keeping them as ambiguous separate positions. This is the
+	// pre-holding_id behaviour; it understates reserves if the rows were distinct positions.
+	DropIdenticalUnkeyed bool
 }
 
 // Result is the outcome of loading one file.
 type Result[T model.Keyed] struct {
 	Path       string
-	SHA256     string // hash of the exact file bytes that were parsed
-	Rows       []T    // validated, de-duplicated, in file order
-	Duplicates []Duplicate
-	Errors     []RowError
-	RowsRead   int // data rows seen in the file, valid or not
+	SHA256     string      // hash of the exact file bytes that were parsed
+	Rows       []T         // validated rows in file order, without true duplicates
+	Duplicates []Duplicate // exact repeats that were dropped
+	// Ambiguous lists identical rows without a holding_id that were kept as separate positions.
+	Ambiguous []Duplicate
+	Errors    []RowError
+	RowsRead  int // data rows seen in the file, valid or not
 }
 
-// DuplicateCount is the number of repeated rows that were ignored.
+// AmbiguousCount is the number of repeated unkeyed rows that were kept.
+func (r *Result[T]) AmbiguousCount() int {
+	n := 0
+	for _, d := range r.Ambiguous {
+		n += len(d.RepeatPositions)
+	}
+	return n
+}
+
+// DuplicateCount is the number of repeated rows that were dropped.
 func (r *Result[T]) DuplicateCount() int {
 	n := 0
 	for _, d := range r.Duplicates {
@@ -68,17 +98,25 @@ func (r *Result[T]) ErrorOrNil() error {
 
 // LoadReserves loads a reserves snapshot.
 func LoadReserves(path string) (*Result[model.ReserveRow], error) {
-	return load(path, model.ReserveRequired, model.ParseReserve)
+	return LoadReservesWith(path, Options{})
+}
+
+// LoadReservesWith loads a reserves snapshot with explicit duplicate options.
+func LoadReservesWith(path string, opts Options) (*Result[model.ReserveRow], error) {
+	return load(path, model.ReserveRequired, model.ParseReserve, identity[model.ReserveRow]{
+		holdingID:   func(r model.ReserveRow) string { return r.HoldingID },
+		keepUnkeyed: !opts.DropIdenticalUnkeyed,
+	})
 }
 
 // LoadSupply loads circulating-supply snapshots.
 func LoadSupply(path string) (*Result[model.SupplyRow], error) {
-	return load(path, model.SupplyRequired, model.ParseSupply)
+	return load(path, model.SupplyRequired, model.ParseSupply, identity[model.SupplyRow]{})
 }
 
 // LoadRedemptions loads the redemption log.
 func LoadRedemptions(path string) (*Result[model.RedemptionRow], error) {
-	return load(path, model.RedemptionRequired, model.ParseRedemption)
+	return load(path, model.RedemptionRequired, model.ParseRedemption, identity[model.RedemptionRow]{})
 }
 
 // LatestSupply returns the supply snapshot with the latest as_of.
@@ -105,7 +143,44 @@ func fileErr(path, format string, args ...any) error {
 	return fmt.Errorf("%w: %s: %s", ErrFile, path, fmt.Sprintf(format, args...))
 }
 
-func load[T model.Keyed](path string, required []string, parse func(map[string]string) (T, error)) (*Result[T], error) {
+// identity describes how a row type is identified. The zero value means: rows have no id and
+// exact repeats are dropped.
+type identity[T any] struct {
+	holdingID   func(T) string // nil when the type has no ids
+	keepUnkeyed bool           // keep identical rows that have no id (ambiguous) instead of dropping
+}
+
+// dupSet collects repeat groups in first-seen order.
+type dupSet struct {
+	order []string
+	byKey map[string]*Duplicate
+}
+
+func (d *dupSet) add(key string, first, pos, rowIndex int, withIndex bool) {
+	if d.byKey == nil {
+		d.byKey = map[string]*Duplicate{}
+	}
+	g, ok := d.byKey[key]
+	if !ok {
+		g = &Duplicate{Key: key, FirstPosition: first}
+		d.byKey[key] = g
+		d.order = append(d.order, key)
+	}
+	g.RepeatPositions = append(g.RepeatPositions, pos)
+	if withIndex {
+		g.RepeatRowIndexes = append(g.RepeatRowIndexes, rowIndex)
+	}
+}
+
+func (d *dupSet) list() []Duplicate {
+	var out []Duplicate
+	for _, k := range d.order {
+		out = append(out, *d.byKey[k])
+	}
+	return out
+}
+
+func load[T model.Keyed](path string, required []string, parse func(map[string]string) (T, error), id identity[T]) (*Result[T], error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fileErr(path, "cannot read file: %v", err)
@@ -130,9 +205,13 @@ func load[T model.Keyed](path string, required []string, parse func(map[string]s
 	}
 
 	res := &Result[T]{Path: path, SHA256: sum, RowsRead: len(raw)}
-	first := map[string]int{}
-	repeats := map[string][]int{}
-	var order []string
+	type seenID struct {
+		key string
+		pos int
+	}
+	first := map[string]int{} // row key -> position of first occurrence
+	ids := map[string]seenID{}
+	var dropped, ambiguous dupSet
 	for _, rec := range raw {
 		if rec.err != nil {
 			res.Errors = append(res.Errors, RowError{rec.pos, rec.err.Error()})
@@ -144,19 +223,35 @@ func load[T model.Keyed](path string, required []string, parse func(map[string]s
 			continue
 		}
 		key := row.RowKey()
-		if _, seen := first[key]; seen {
-			if len(repeats[key]) == 0 {
-				order = append(order, key)
-			}
-			repeats[key] = append(repeats[key], rec.pos)
-			continue
+		hid := ""
+		if id.holdingID != nil {
+			hid = id.holdingID(row)
 		}
-		first[key] = rec.pos
+		switch {
+		case hid != "":
+			if prev, ok := ids[hid]; ok {
+				if prev.key != key {
+					res.Errors = append(res.Errors, RowError{rec.pos, fmt.Sprintf("holding_id %q already used at %d with different content", hid, prev.pos)})
+				} else {
+					dropped.add(key, prev.pos, rec.pos, 0, false) // same id, same content: a repeated line
+				}
+				continue
+			}
+			ids[hid] = seenID{key, rec.pos}
+			first[key] = rec.pos
+		case first[key] != 0:
+			if id.keepUnkeyed {
+				ambiguous.add(key, first[key], rec.pos, len(res.Rows), true)
+				break // fall through to append: the repeat is kept as its own position
+			}
+			dropped.add(key, first[key], rec.pos, 0, false)
+			continue
+		default:
+			first[key] = rec.pos
+		}
 		res.Rows = append(res.Rows, row)
 	}
-	for _, key := range order {
-		res.Duplicates = append(res.Duplicates, Duplicate{key, first[key], repeats[key]})
-	}
+	res.Duplicates, res.Ambiguous = dropped.list(), ambiguous.list()
 	return res, nil
 }
 

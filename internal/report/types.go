@@ -58,8 +58,11 @@ type Counts struct {
 
 // Options records the command-line choices that affect results.
 type Options struct {
-	AllowInvalidRows bool   `json:"allow_invalid_rows"`
-	AsOfOverride     string `json:"as_of_override,omitempty"`
+	AllowInvalidRows bool `json:"allow_invalid_rows"`
+	// AllowDuplicateRows acknowledges identical reserve rows without a holding_id as distinct
+	// positions: they are still kept and listed, but no DUPLICATE_ROW_WARNING is raised.
+	AllowDuplicateRows bool   `json:"allow_duplicate_rows"`
+	AsOfOverride       string `json:"as_of_override,omitempty"`
 }
 
 // FileInfo identifies a file by path and content hash.
@@ -81,16 +84,30 @@ type CalendarInfo struct {
 
 // Input describes one loaded data file.
 type Input struct {
-	Role        string       `json:"role"` // reserves, supply, redemptions
-	Path        string       `json:"path"`
-	SHA256      string       `json:"sha256"`
-	RowsRead    int          `json:"rows_read"`
-	RowsUsed    int          `json:"rows_used"`
-	Duplicates  []Duplicate  `json:"duplicates"`
-	InvalidRows []InvalidRow `json:"invalid_rows"`
+	Role     string `json:"role"` // reserves, supply, redemptions
+	Path     string `json:"path"`
+	SHA256   string `json:"sha256"`
+	RowsRead int    `json:"rows_read"`
+	RowsUsed int    `json:"rows_used"`
+	// Duplicates are exact repeats (same holding_id or an unkeyed non-reserve row) that were
+	// dropped and not counted.
+	Duplicates []Duplicate `json:"duplicates"`
+	// IdenticalUnkeyed are identical reserve rows without a holding_id that were KEPT as
+	// separate positions and therefore counted.
+	IdenticalUnkeyed []Duplicate  `json:"identical_unkeyed_rows_kept"`
+	InvalidRows      []InvalidRow `json:"invalid_rows"`
 }
 
-// DuplicateCount is the number of repeated rows ignored.
+// IdenticalUnkeyedCount is the number of repeated unkeyed rows that were kept.
+func (i Input) IdenticalUnkeyedCount() int {
+	n := 0
+	for _, d := range i.IdenticalUnkeyed {
+		n += len(d.RepeatPositions)
+	}
+	return n
+}
+
+// DuplicateCount is the number of repeated rows dropped.
 func (i Input) DuplicateCount() int {
 	n := 0
 	for _, d := range i.Duplicates {

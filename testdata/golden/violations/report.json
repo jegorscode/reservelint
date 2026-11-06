@@ -9,11 +9,12 @@
   "partial_run": false,
   "counts": {
     "pass": 0,
-    "warning": 1,
+    "warning": 2,
     "fail": 3
   },
   "options": {
-    "allow_invalid_rows": false
+    "allow_invalid_rows": false,
+    "allow_duplicate_rows": false
   },
   "inputs": [
     {
@@ -21,8 +22,9 @@
       "path": "testdata/vectors/violations/reserves.csv",
       "sha256": "7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf",
       "rows_read": 16,
-      "rows_used": 15,
-      "duplicates": [
+      "rows_used": 16,
+      "duplicates": [],
+      "identical_unkeyed_rows_kept": [
         {
           "row_key": "e3f8681aec6172cab5f719b64d427a40369eecd0f60f66b56d3995c8f48ddfa8",
           "first_position": 2,
@@ -40,6 +42,7 @@
       "rows_read": 1,
       "rows_used": 1,
       "duplicates": [],
+      "identical_unkeyed_rows_kept": [],
       "invalid_rows": []
     },
     {
@@ -49,6 +52,7 @@
       "rows_read": 60,
       "rows_used": 60,
       "duplicates": [],
+      "identical_unkeyed_rows_kept": [],
       "invalid_rows": []
     }
   ],
@@ -73,7 +77,7 @@
       "description": "Total reserves must be at least the circulating supply.",
       "status": "warning",
       "uncapped_status": "fail",
-      "observed": "0.95",
+      "observed": "0.96045",
       "comparator": ">=",
       "threshold": "1",
       "citation": "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).",
@@ -81,9 +85,9 @@
       "rule_notes": "Confirm whether the ratio is on face value, market value, or another measure.",
       "details": {
         "circulating_supply": "100000000",
-        "shortfall": "5000000",
+        "shortfall": "3955000",
         "supply_as_of": "2027-02-01T21:00:00Z",
-        "total_reserves": "95000000"
+        "total_reserves": "96045000"
       }
     },
     {
@@ -91,15 +95,15 @@
       "check": "liquidity_floor",
       "description": "At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.",
       "status": "fail",
-      "observed": "0.02",
+      "observed": "0.0306627101879327",
       "comparator": ">=",
       "threshold": "0.05",
       "citation": "OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble).",
       "rule_verified": true,
       "rule_notes": "Figure taken from preamble text, not the codified regulation text; re-check against the codified text. The input flag is_immediately_available must be set only for assets in the categories above. The weekly-liquidity (5 business days) requirement was dropped in the final rule, so none is modelled.",
       "details": {
-        "immediately_available": "1900000",
-        "total_reserves": "95000000"
+        "immediately_available": "2945000",
+        "total_reserves": "96045000"
       }
     },
     {
@@ -107,7 +111,7 @@
       "check": "counterparty_concentration",
       "description": "Exposure to any one counterparty may not exceed a maximum share of reserve assets.",
       "status": "fail",
-      "observed": "0.55",
+      "observed": "0.5548961424332344",
       "comparator": "<=",
       "threshold": "0.4",
       "citation": "OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble).",
@@ -115,15 +119,15 @@
       "rule_notes": "The rule is \"subject to certain exceptions\" that are NOT modelled; the check applies the limit to every counterparty, so it can over-report. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets. Per-institution holdings and weighted average maturity limits were dropped from the final rule.",
       "details": {
         "shares": {
-          "Synthetic Bank Alpha": "0.55",
-          "Synthetic Bank Beta": "0.1",
-          "Synthetic Bank Epsilon": "0.15",
-          "Synthetic Custody Gamma": "0.1",
-          "Synthetic Trust Delta": "0.1"
+          "Synthetic Bank Alpha": "0.5548961424332344",
+          "Synthetic Bank Beta": "0.0989119683481701",
+          "Synthetic Bank Epsilon": "0.1483679525222552",
+          "Synthetic Custody Gamma": "0.0989119683481701",
+          "Synthetic Trust Delta": "0.0989119683481701"
         },
         "top_counterparty": "Synthetic Bank Alpha",
-        "top_counterparty_amount": "52250000",
-        "total_reserves": "95000000"
+        "top_counterparty_amount": "53295000",
+        "total_reserves": "96045000"
       }
     },
     {
@@ -158,6 +162,25 @@
         "total_amount": "15505629.82",
         "warning_amount": "0",
         "warnings": 0
+      }
+    },
+    {
+      "rule_id": "DUPLICATE_ROW_WARNING",
+      "check": "duplicate_rows",
+      "description": "Identical reserve rows without a holding_id were kept as separate positions; they may be repeated lines.",
+      "status": "warning",
+      "observed": "1",
+      "comparator": "<=",
+      "threshold": "0",
+      "citation": "Data-quality check, not a regulatory rule.",
+      "rule_verified": true,
+      "details": {
+        "amount_in_repeated_rows": "1045000",
+        "effect": "These rows are counted in total reserves. If they are accidental repeats, reserves are overstated by amount_in_repeated_rows.",
+        "file": "testdata/vectors/violations/reserves.csv",
+        "groups": "line 2 repeated at 17",
+        "how_to_resolve": "Give each position a unique holding_id, or pass --allow-duplicate-rows to acknowledge them as distinct positions.",
+        "repeated_rows_kept": 1
       }
     }
   ],

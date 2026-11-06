@@ -16,6 +16,7 @@ import (
 	"github.com/jegorscode/reservelint/internal/model"
 	"github.com/jegorscode/reservelint/internal/report"
 	"github.com/jegorscode/reservelint/internal/rules"
+	"github.com/shopspring/decimal"
 )
 
 // Options configures a run.
@@ -28,7 +29,10 @@ type Options struct {
 	AsOf            *time.Time // overrides the latest supply snapshot time when set
 
 	AllowInvalidRows bool
-	Now              func() time.Time // injectable clock; time.Now when nil
+	// AllowDuplicateRows acknowledges identical reserve rows without a holding_id as distinct
+	// positions. They are kept either way; this only suppresses DUPLICATE_ROW_WARNING.
+	AllowDuplicateRows bool
+	Now                func() time.Time // injectable clock; time.Now when nil
 }
 
 // InputError means the run could not be completed because of bad input, configuration or
@@ -102,7 +106,7 @@ func Run(opts Options) (*report.Report, error) {
 		Tool: meta.Name, Version: meta.Version, Disclaimer: meta.Disclaimer,
 		GeneratedAt: now().UTC(), AsOf: asOf.UTC(),
 		Partial: invalid > 0,
-		Options: report.Options{AllowInvalidRows: opts.AllowInvalidRows},
+		Options: report.Options{AllowInvalidRows: opts.AllowInvalidRows, AllowDuplicateRows: opts.AllowDuplicateRows},
 		Inputs:  inputs,
 		Rules:   report.FileInfo{Path: opts.RulesPath, SHA256: loaded.SHA256},
 	}
@@ -148,9 +152,52 @@ func Run(opts Options) (*report.Report, error) {
 		}
 		rep.Findings = append(rep.Findings, findingView(f, rule))
 	}
+	if f, ok := duplicateWarning(reserves, opts); ok {
+		rep.Findings = append(rep.Findings, f)
+	}
 	rep.Caveats = caveats(rep)
 	rep.Finalize()
 	return rep, nil
+}
+
+// DuplicateRowWarning is the rule id of the data-quality finding raised for identical reserve
+// rows that have no holding_id.
+const DuplicateRowWarning = "DUPLICATE_ROW_WARNING"
+
+// duplicateWarning reports identical unkeyed reserve rows. They were kept as separate positions
+// (so reserves may be overstated if they are really repeated lines), hence a warning, never a
+// failure. With --allow-duplicate-rows the rows are still kept and listed but no warning is raised.
+func duplicateWarning(reserves *ingest.Result[model.ReserveRow], opts Options) (report.Finding, bool) {
+	n := reserves.AmbiguousCount()
+	if n == 0 || opts.AllowDuplicateRows {
+		return report.Finding{}, false
+	}
+	extra := decimal.Zero
+	var groups []string
+	for _, g := range reserves.Ambiguous {
+		for _, idx := range g.RepeatRowIndexes {
+			extra = extra.Add(reserves.Rows[idx].Amount)
+		}
+		lines := make([]string, len(g.RepeatPositions))
+		for i, p := range g.RepeatPositions {
+			lines[i] = fmt.Sprint(p)
+		}
+		groups = append(groups, fmt.Sprintf("line %d repeated at %s", g.FirstPosition, strings.Join(lines, ", ")))
+	}
+	return report.Finding{
+		RuleID: DuplicateRowWarning, Check: "duplicate_rows",
+		Description: "Identical reserve rows without a holding_id were kept as separate positions; they may be repeated lines.",
+		Status:      "warning", Observed: decimal.NewFromInt(int64(n)), Comparator: "<=", Threshold: decimal.Zero,
+		Citation: "Data-quality check, not a regulatory rule.", RuleVerified: true,
+		Details: map[string]any{
+			"file":                    reserves.Path,
+			"repeated_rows_kept":      n,
+			"groups":                  strings.Join(groups, "; "),
+			"amount_in_repeated_rows": extra.String(),
+			"effect":                  "These rows are counted in total reserves. If they are accidental repeats, reserves are overstated by amount_in_repeated_rows.",
+			"how_to_resolve":          "Give each position a unique holding_id, or pass --allow-duplicate-rows to acknowledge them as distinct positions.",
+		},
+	}, true
 }
 
 func calendarPath(rule rules.Rule, override string) string {
@@ -176,10 +223,13 @@ func loadCalendar(rule rules.Rule, override string) (*calendar.Calendar, error) 
 func inputOf[T model.Keyed](role string, r *ingest.Result[T]) report.Input {
 	in := report.Input{
 		Role: role, Path: r.Path, SHA256: r.SHA256, RowsRead: r.RowsRead, RowsUsed: len(r.Rows),
-		Duplicates: []report.Duplicate{}, InvalidRows: []report.InvalidRow{},
+		Duplicates: []report.Duplicate{}, IdenticalUnkeyed: []report.Duplicate{}, InvalidRows: []report.InvalidRow{},
 	}
 	for _, d := range r.Duplicates {
 		in.Duplicates = append(in.Duplicates, report.Duplicate{RowKey: d.Key, FirstPosition: d.FirstPosition, RepeatPositions: d.RepeatPositions})
+	}
+	for _, d := range r.Ambiguous {
+		in.IdenticalUnkeyed = append(in.IdenticalUnkeyed, report.Duplicate{RowKey: d.Key, FirstPosition: d.FirstPosition, RepeatPositions: d.RepeatPositions})
 	}
 	for _, e := range r.Errors {
 		in.InvalidRows = append(in.InvalidRows, report.InvalidRow{Position: e.Position, Message: e.Message})
@@ -270,6 +320,13 @@ func caveats(rep *report.Report) []string {
 			n += len(in.InvalidRows)
 		}
 		out = append(out, fmt.Sprintf("PARTIAL RUN: %d invalid row(s) were excluded under --allow-invalid-rows; results cover valid rows only.", n))
+	}
+	if rep.Options.AllowDuplicateRows {
+		for _, in := range rep.Inputs {
+			if n := in.IdenticalUnkeyedCount(); n > 0 {
+				out = append(out, fmt.Sprintf("%d identical row(s) without a holding_id in %s were kept as distinct positions (--allow-duplicate-rows).", n, in.Path))
+			}
+		}
 	}
 	for _, f := range rep.Findings {
 		switch {
