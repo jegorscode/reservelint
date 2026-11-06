@@ -2,7 +2,7 @@
 
 > Monitoring and reporting aid. Not legal advice. Not an official OCC form.
 
-**Overall: FAIL** (3 fail, 2 warning, 0 pass)
+**Overall: FAIL** (4 fail, 1 warning, 1 pass)
 
 - Generated: 2027-02-01T21:30:00Z by reservelint 0.1.0-dev
 - Snapshot as of: 2027-02-01T21:00:00Z
@@ -12,23 +12,24 @@
 
 | Rule | Check | Status | Observed | Requirement | Rule verified |
 |---|---|---|---|---|---|
-| RW-COV-001 | coverage | WARNING (capped from FAIL) | 96.045% | at least 100% | NO |
+| RW-COV-001 | coverage | FAIL | 96.045% | at least 100% | yes |
 | RW-LIQ-001 | liquidity_floor | FAIL | 3.0663% | at least 5% | yes |
 | RW-CON-001 | counterparty_concentration | FAIL | 55.4896% | at most 40% | yes |
 | RW-RED-001 | redemption_timing | FAIL | 8 business days | at most 2 business days | yes |
+| RW-RED-002 | redemption_surge | PASS | 1.9298% | at most 10% | yes |
 | DUPLICATE_ROW_WARNING | duplicate_rows | WARNING | 1 rows | at most 0 rows | yes |
 
-### RW-COV-001: coverage - WARNING (capped from FAIL)
+### RW-COV-001: coverage - FAIL
 
-Total reserves must be at least the circulating supply.
-
-> The check result was **FAIL**, but this rule is unverified, so it is capped at WARNING and does not fail the run.
+Reserve asset value must at all times equal or exceed the outstanding issuance value.
 
 - Observed: 96.045%; required at least 100%
-- Citation: UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).
-- Rule verified: NO
-- Rule notes: Confirm whether the ratio is on face value, market value, or another measure.
+- Citation: 12 CFR 15.11(a)(1)(iii); reserve asset value as defined in Table 1 to 15.11(e), rows 15 to 17.
+- Rule verified: yes
+- Rule notes: Reserve asset value = total reserve assets minus outstanding repurchase-agreement liabilities. Rows flagged is_repo_liability are treated as liabilities, so supply them or coverage is overstated when the issuer has repos outstanding. Only a snapshot is checked, but the rule applies at all times. A shortfall also triggers 15.11(g): notify the OCC on any day reserves fall below the minimum, no new issuance until restored, and liquidation after 15 consecutive business days (the tool cannot see history; see RW-NOT-001).
 - circulating_supply: 100000000
+- outstanding_repo_liabilities: 0
+- reserve_asset_value: 96045000
 - shortfall: 3955000
 - supply_as_of: 2027-02-01T21:00:00Z
 - total_reserves: 96045000
@@ -38,20 +39,22 @@ Total reserves must be at least the circulating supply.
 At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.
 
 - Observed: 3.0663%; required at least 5%
-- Citation: OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble).
+- Citation: 12 CFR 15.11(c)(2)(i).
 - Rule verified: yes
-- Rule notes: Figure taken from preamble text, not the codified regulation text; re-check against the codified text. The input flag is_immediately_available must be set only for assets in the categories above. The weekly-liquidity (5 business days) requirement was dropped in the final rule, so none is modelled.
+- Rule notes: The input flag is_immediately_available must be set only for assets in the categories above; the tool trusts it. The denominator is total reserve assets (repo liabilities excluded).
 - immediately_available: 2945000
 - total_reserves: 96045000
 
 ### RW-CON-001: counterparty_concentration - FAIL
 
-Exposure to any one counterparty may not exceed a maximum share of reserve assets.
+Exposure to any one counterparty may not exceed a maximum share of reserve assets, except for exposures to the United States Government, to an appropriate custodian from assets held in its custody, and from centrally cleared repurchase and reverse repurchase agreements.
 
 - Observed: 55.4896%; required at most 40%
-- Citation: OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble).
+- Citation: 12 CFR 15.11(c)(2)(ii)(A) and (B); appropriate custodians per 15.11(d).
 - Rule verified: yes
-- Rule notes: The rule is "subject to certain exceptions" that are NOT modelled; the check applies the limit to every counterparty, so it can over-report. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets. Per-institution holdings and weighted average maturity limits were dropped from the final rule.
+- Rule notes: Exempt exposures are marked with the reserves column concentration_exemption (us_government, custodian, centrally_cleared_repo); they stay in the denominator but not in any counterparty's numerator. The tool cannot verify the conditions of 15.11(d) (the issuer identifies itself to the custodian, the custodian commits to GENIUS Act section 10, and ongoing due diligence), so an exemption is taken as asserted by the issuer. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets.
+- exempt_exposure:
+- exempt_exposure_total: 0
 - shares:
   - Synthetic Bank Alpha: 0.5548961424332344
   - Synthetic Bank Beta: 0.0989119683481701
@@ -67,9 +70,9 @@ Exposure to any one counterparty may not exceed a maximum share of reserve asset
 A timely redemption may not exceed a maximum number of business days following the redemption request.
 
 - Observed: 8 business days; required at most 2 business days
-- Citation: OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble).
+- Citation: 12 CFR 15.12(a)(2) and 15.12(c)(1) (two business days); business day per 12 CFR 15.2.
 - Rule verified: yes
-- Rule notes: Figures and definitions taken from preamble text, not the codified regulation text. "Business day" means any day other than a Saturday, Sunday, or Federal holiday. The counting convention, near-breach margin and handling of open, rejected and cancelled requests are owner decisions recorded above, not text from the rule.
+- Rule notes: The two-business-day limit and the definition of when redemption occurs (15.12(a)(2)) are from the codified text supplied. The clock-start rule (valid order plus satisfied conditions such as onboarding, 15.12(a)(1)) and the business-day definition (15.2) were described in the final rule preamble and are not in the text supplied. The counting convention, near-breach margin and handling of open, rejected and cancelled requests are owner decisions, not text from the rule. Discretionary limits on redemption can only be imposed by the regulator (15.12(c)(2)); the tool does not model them.
 - as_of: 2027-02-01T21:00:00Z
 - breach_amount: 2919323.2
 - breaches: 10
@@ -90,6 +93,24 @@ A timely redemption may not exceed a maximum number of business days following t
 - total_amount: 15505629.82
 - warning_amount: 0
 - warnings: 0
+
+### RW-RED-002: redemption_surge - PASS
+
+Redemption requests in excess of a share of outstanding issuance value in a single 24-hour period require notice to the OCC within 24 hours.
+
+- Observed: 1.9298%; required at most 10%
+- Citation: 12 CFR 15.12(d)(1).
+- Rule verified: yes
+- Rule notes: A duty to notify, not a violation: the finding always passes and is a WARNING when notice is due; the tool cannot see whether notice was given. Every request received counts, whatever its later status. The 24-hour period is applied as a rolling window starting at each request; the rule text does not say whether it means rolling or calendar-day windows. Outstanding issuance is the latest supply snapshot, for a single brand of stablecoin.
+- largest_window_amount: 1929811.73
+- largest_window_first: 2027-01-05T15:40:41Z
+- largest_window_last: 2027-01-06T03:37:24Z
+- largest_window_requests: 5
+- notice_deadline_hours: 24
+- notice_to_occ_required: false
+- outstanding_issuance: 100000000
+- requests_considered: 60
+- window_hours: 24
 
 ### DUPLICATE_ROW_WARNING: duplicate_rows - WARNING
 
@@ -118,7 +139,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | Outcome | Requested | Clock start | Clock end | Days used | Due | Amount | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
 | BREACH | 2027-01-04T07:23:58Z | 2027-01-04T07:23:58Z | 2027-01-08T17:27:44Z | 4 | 2027-01-06 | 390269.54 | completed |  |
-| OK | 2027-01-05T02:26:54Z | 2027-01-05T05:39:00Z | 2027-01-05T05:39:00Z | 0 | 2027-01-07 | 137014.06 | completed | transfer_initiated_ts precedes the clock start; counted as 0 days |
+| OK | 2027-01-05T02:26:54Z | 2027-01-05T05:39:00Z | 2027-01-05T05:39:00Z | 0 | 2027-01-07 | 137014.06 | completed | the completing event (transfer_initiated_ts or credited_ts) precedes the clock start; counted as 0 days |
 | BREACH | 2027-01-05T15:40:41Z | 2027-01-05T15:40:41Z | 2027-01-11T23:37:00Z | 4 | 2027-01-07 | 452212.02 | completed |  |
 | BREACH | 2027-01-09T12:31:16Z | 2027-01-09T12:31:16Z | 2027-01-14T19:36:08Z | 4 | 2027-01-12 | 68225.95 | completed |  |
 | BREACH | 2027-01-15T11:06:18Z | 2027-01-15T11:06:18Z | 2027-01-23T23:50:53Z | 4 | 2027-01-20 | 393954.81 | completed |  |
@@ -136,7 +157,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 16 | 0 | 1 | 0 |
 | testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
 | testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
-| rules/rules.yaml | rules | `e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21` | | | | | |
+| rules/rules.yaml | rules | `70476a75ef537e2273c07712977f5e31073167c86d8116ee132196b9f05ae4be` | | | | | |
 | config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
 Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
@@ -145,13 +166,14 @@ Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv
 
 ## Rules tracked but not checked
 
-- RW-STR-001: Reserve stress testing requirement. (no check implemented)
-- RW-REP-001: Weekly reserve reporting. (no check implemented)
-- RW-REP-002: Quarterly reporting. (no check implemented)
+- RW-COMP-001: Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve account balances, demand deposits and insured shares, Treasury securities of 93 days or less remaining maturity, overnight repurchase and reverse repurchase agreements on those terms, qualifying government money market fund shares, OCC-approved similar assets, and tokenized forms of some of these. (no check implemented)
+- RW-STR-001: Demonstrate operational capability to access and monetize reserve assets to meet redemptions in normal and adverse conditions, and keep a buffer of reserve assets in excess of outstanding issuance value where needed. (no check implemented)
+- RW-RPT-001: Publish the monthly composition of reserves on the issuer's website by noon on the last day of each month, in a format substantially similar to Table 1 to 15.11(e). (no check implemented)
+- RW-RPT-002: Have the previous month-end composition report examined by a registered public accounting firm and published with it, and submit a monthly CEO and CFO accuracy certification to the OCC. (no check implemented)
+- RW-NOT-001: Notify the OCC on any day reserve assets fall below the minimum; stop new issuance until restored; begin liquidation and redemption after 15 consecutive business days below it. (no check implemented)
 
 ## Caveats
 
-- Rule RW-COV-001 (coverage) is not verified against the rule text. The check FAILED, but because the rule is unverified it is reported as WARNING and does not set a failing exit code.
 - Holiday calendar "US Federal holidays" is not verified against an official schedule; business-day counts depend on it.
 
 ---

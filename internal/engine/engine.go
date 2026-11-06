@@ -61,17 +61,24 @@ const (
 	NameCoverage      = "coverage"
 	NameLiquidity     = "liquidity_floor"
 	NameConcentration = "counterparty_concentration"
+	NameSurge         = "redemption_surge"
 )
 
-func totalOf(reserves []model.ReserveRow) (decimal.Decimal, error) {
-	if len(reserves) == 0 {
-		return decimal.Zero, errors.New("no reserve rows")
-	}
-	total := decimal.Zero
+// splitReserves separates reserve assets from outstanding repo liabilities (rows flagged
+// is_repo_liability). It returns the assets, their total, and the total liabilities.
+func splitReserves(reserves []model.ReserveRow) (assets []model.ReserveRow, total, liabilities decimal.Decimal, err error) {
 	for _, r := range reserves {
+		if r.IsRepoLiability {
+			liabilities = liabilities.Add(r.Amount)
+			continue
+		}
+		assets = append(assets, r)
 		total = total.Add(r.Amount)
 	}
-	return total, nil
+	if len(assets) == 0 {
+		return nil, decimal.Zero, decimal.Zero, errors.New("no reserve asset rows")
+	}
+	return assets, total, liabilities, nil
 }
 
 // newFinding compares numerator/denominator to threshold exactly.
@@ -95,9 +102,11 @@ func newFinding(rule rules.Rule, num, den, threshold decimal.Decimal, cmp Compar
 	}
 }
 
-// CheckCoverage: total reserves / circulating supply must be at least the minimum ratio.
+// CheckCoverage: reserve asset value / outstanding issuance value must be at least the minimum
+// ratio (12 CFR 15.11(a)(1)(iii)). Reserve asset value is total reserve assets minus outstanding
+// repurchase-agreement liabilities (Table 1 to 15.11(e), rows 15 to 17).
 func CheckCoverage(rule rules.Rule, reserves []model.ReserveRow, supply model.SupplyRow) (Finding, error) {
-	total, err := totalOf(reserves)
+	_, total, liabilities, err := splitReserves(reserves)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -105,19 +114,22 @@ func CheckCoverage(rule rules.Rule, reserves []model.ReserveRow, supply model.Su
 	if err != nil {
 		return Finding{}, err
 	}
-	shortfall := decimal.Max(supply.CirculatingSupply.Sub(total), decimal.Zero)
-	return newFinding(rule, total, supply.CirculatingSupply, threshold, AtLeast, map[string]any{
-		"total_reserves":     total.String(),
-		"circulating_supply": supply.CirculatingSupply.String(),
-		"supply_as_of":       supply.AsOf.UTC().Format("2006-01-02T15:04:05Z07:00"),
-		"shortfall":          shortfall.String(),
+	value := total.Sub(liabilities)
+	shortfall := decimal.Max(supply.CirculatingSupply.Sub(value), decimal.Zero)
+	return newFinding(rule, value, supply.CirculatingSupply, threshold, AtLeast, map[string]any{
+		"total_reserves":               total.String(),
+		"outstanding_repo_liabilities": liabilities.String(),
+		"reserve_asset_value":          value.String(),
+		"circulating_supply":           supply.CirculatingSupply.String(),
+		"supply_as_of":                 supply.AsOf.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		"shortfall":                    shortfall.String(),
 	}), nil
 }
 
-// CheckLiquidityFloor: the share of reserves flagged immediately available must be at least
-// the minimum.
+// CheckLiquidityFloor: the share of reserve assets flagged immediately available must be at
+// least the minimum (12 CFR 15.11(c)(2)(i)).
 func CheckLiquidityFloor(rule rules.Rule, reserves []model.ReserveRow) (Finding, error) {
-	total, err := totalOf(reserves)
+	assets, total, _, err := splitReserves(reserves)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -126,7 +138,7 @@ func CheckLiquidityFloor(rule rules.Rule, reserves []model.ReserveRow) (Finding,
 		return Finding{}, err
 	}
 	available := decimal.Zero
-	for _, r := range reserves {
+	for _, r := range assets {
 		if r.IsImmediatelyAvailable {
 			available = available.Add(r.Amount)
 		}
@@ -137,10 +149,12 @@ func CheckLiquidityFloor(rule rules.Rule, reserves []model.ReserveRow) (Finding,
 	}), nil
 }
 
-// CheckCounterpartyConcentration: the largest counterparty's share of reserves must be at most
-// the maximum. Name variants that differ only in case or whitespace are one counterparty.
+// CheckCounterpartyConcentration: the largest non-exempt counterparty exposure's share of
+// reserve assets must be at most the maximum (12 CFR 15.11(c)(2)(ii)(A)). Exposures flagged with
+// a concentration_exemption (15.11(c)(2)(ii)(B)) are left out of the numerator but stay in the
+// denominator. Name variants that differ only in case or whitespace are one counterparty.
 func CheckCounterpartyConcentration(rule rules.Rule, reserves []model.ReserveRow) (Finding, error) {
-	total, err := totalOf(reserves)
+	assets, total, _, err := splitReserves(reserves)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -150,7 +164,14 @@ func CheckCounterpartyConcentration(rule rules.Rule, reserves []model.ReserveRow
 	}
 	amounts := map[string]decimal.Decimal{}
 	display := map[string]string{}
-	for _, r := range reserves {
+	exempt := map[string]decimal.Decimal{}
+	exemptTotal := decimal.Zero
+	for _, r := range assets {
+		if r.ConcentrationExemption != "" {
+			exempt[r.ConcentrationExemption] = exempt[r.ConcentrationExemption].Add(r.Amount)
+			exemptTotal = exemptTotal.Add(r.Amount)
+			continue
+		}
 		key := model.NormText(r.Counterparty)
 		if _, ok := display[key]; !ok {
 			display[key] = r.Counterparty
@@ -171,12 +192,22 @@ func CheckCounterpartyConcentration(rule rules.Rule, reserves []model.ReserveRow
 	for _, k := range keys {
 		shares[display[k]] = amounts[k].DivRound(total, displayPrecision).String()
 	}
-	top := keys[0]
-	return newFinding(rule, amounts[top], total, threshold, AtMost, map[string]any{
+	exempted := make(map[string]string, len(exempt))
+	for k, v := range exempt {
+		exempted[k] = v.String()
+	}
+	top, topName, topAmount := "", "", decimal.Zero
+	if len(keys) > 0 {
+		top = keys[0]
+		topName, topAmount = display[top], amounts[top]
+	}
+	return newFinding(rule, topAmount, total, threshold, AtMost, map[string]any{
 		"total_reserves":          total.String(),
-		"top_counterparty":        display[top],
-		"top_counterparty_amount": amounts[top].String(),
+		"top_counterparty":        topName,
+		"top_counterparty_amount": topAmount.String(),
 		"shares":                  shares,
+		"exempt_exposure_total":   exemptTotal.String(),
+		"exempt_exposure":         exempted,
 	}), nil
 }
 

@@ -31,7 +31,24 @@ type ReserveRow struct {
 	Counterparty           string
 	MaturityDate           *time.Time // calendar date, stored at UTC midnight
 	IsImmediatelyAvailable bool
+	// ConcentrationExemption marks an exposure that the 40% single-counterparty limit does not
+	// apply to (12 CFR 15.11(c)(2)(ii)(B)); one of the Exempt* values, or "" for none. The tool
+	// takes it as asserted by the issuer: it cannot verify the conditions of 15.11(d).
+	ConcentrationExemption string
+	// IsRepoLiability marks a row as an outstanding repurchase-agreement liability, not a reserve
+	// asset. It is excluded from total reserve assets and subtracted to get reserve asset value
+	// (Table 1 to 15.11(e), rows 15 to 17).
+	IsRepoLiability bool
 }
+
+// Concentration exemption values (12 CFR 15.11(c)(2)(ii)(B)).
+const (
+	ExemptUSGovernment         = "us_government"          // exposures to the United States Government
+	ExemptCustodian            = "custodian"              // exposure to an appropriate custodian holding reserve assets
+	ExemptCentrallyClearedRepo = "centrally_cleared_repo" // centrally cleared repos and reverse repos
+)
+
+var exemptions = map[string]bool{ExemptUSGovernment: true, ExemptCustodian: true, ExemptCentrallyClearedRepo: true}
 
 // SupplyRow is a circulating-supply snapshot.
 type SupplyRow struct {
@@ -55,8 +72,11 @@ type RedemptionRow struct {
 	RequestTS           time.Time
 	OnboardedTS         *time.Time
 	TransferInitiatedTS *time.Time
-	Amount              decimal.Decimal
-	Status              RedemptionStatus
+	// CreditedTS is when, at the customer's request, value was credited to the customer's account
+	// with the issuer. Like TransferInitiatedTS it completes the redemption (12 CFR 15.12(a)(2)).
+	CreditedTS *time.Time
+	Amount     decimal.Decimal
+	Status     RedemptionStatus
 }
 
 // Keyed is implemented by every row type.
@@ -162,6 +182,14 @@ func (r *record) optTS(name string) *time.Time {
 	return &t
 }
 
+// optBoolean is boolean for optional columns: blank means false.
+func (r *record) optBoolean(name string) bool {
+	if r.opt(name) == "" {
+		return false
+	}
+	return r.boolean(name)
+}
+
 func (r *record) boolean(name string) bool {
 	switch strings.ToLower(r.opt(name)) {
 	case "true", "t", "yes", "y", "on", "1":
@@ -175,13 +203,22 @@ func (r *record) boolean(name string) bool {
 
 // ParseReserve validates one reserves record (column name -> cell text).
 func ParseReserve(m map[string]string) (ReserveRow, error) {
-	r := newRecord(m, "holding_id", "asset_type", "amount", "counterparty", "maturity_date", "is_immediately_available")
+	r := newRecord(m, "holding_id", "asset_type", "amount", "counterparty", "maturity_date",
+		"is_immediately_available", "concentration_exemption", "is_repo_liability")
 	row := ReserveRow{
 		HoldingID:              r.holdingID(),
 		AssetType:              r.text("asset_type"),
 		Amount:                 r.amount("amount"),
 		Counterparty:           r.text("counterparty"),
 		IsImmediatelyAvailable: r.boolean("is_immediately_available"),
+		ConcentrationExemption: strings.ToLower(r.opt("concentration_exemption")),
+		IsRepoLiability:        r.optBoolean("is_repo_liability"),
+	}
+	if e := row.ConcentrationExemption; e != "" && !exemptions[e] {
+		r.fail("concentration_exemption: %q must be %s, %s or %s", e, ExemptUSGovernment, ExemptCustodian, ExemptCentrallyClearedRepo)
+	}
+	if row.IsRepoLiability && row.ConcentrationExemption != "" {
+		r.fail("concentration_exemption: not applicable to a repo liability row")
 	}
 	if v := r.opt("maturity_date"); v != "" {
 		d, err := time.Parse(dateLayout, v)
@@ -202,11 +239,12 @@ func ParseSupply(m map[string]string) (SupplyRow, error) {
 
 // ParseRedemption validates one redemption record.
 func ParseRedemption(m map[string]string) (RedemptionRow, error) {
-	r := newRecord(m, "request_ts", "onboarded_ts", "transfer_initiated_ts", "amount", "status")
+	r := newRecord(m, "request_ts", "onboarded_ts", "transfer_initiated_ts", "credited_ts", "amount", "status")
 	row := RedemptionRow{
 		RequestTS:           r.ts("request_ts"),
 		OnboardedTS:         r.optTS("onboarded_ts"),
 		TransferInitiatedTS: r.optTS("transfer_initiated_ts"),
+		CreditedTS:          r.optTS("credited_ts"),
 		Amount:              r.amount("amount"),
 	}
 	switch s := RedemptionStatus(strings.ToLower(r.opt("status"))); s {
@@ -238,6 +276,12 @@ func (r ReserveRow) RowKey() string {
 		// Python prototype's).
 		fields["holding_id"] = r.HoldingID
 	}
+	if r.ConcentrationExemption != "" {
+		fields["concentration_exemption"] = r.ConcentrationExemption
+	}
+	if r.IsRepoLiability {
+		fields["is_repo_liability"] = true
+	}
 	return hashKey(fields)
 }
 
@@ -251,11 +295,15 @@ func (r SupplyRow) RowKey() string {
 
 // RowKey identifies a redemption row.
 func (r RedemptionRow) RowKey() string {
-	return hashKey(map[string]any{
+	fields := map[string]any{
 		"request_ts":            normTS(&r.RequestTS),
 		"onboarded_ts":          normTS(r.OnboardedTS),
 		"transfer_initiated_ts": normTS(r.TransferInitiatedTS),
 		"amount":                r.Amount.String(),
 		"status":                string(r.Status),
-	})
+	}
+	if r.CreditedTS != nil {
+		fields["credited_ts"] = normTS(r.CreditedTS) // only when set, to keep older keys unchanged
+	}
+	return hashKey(fields)
 }

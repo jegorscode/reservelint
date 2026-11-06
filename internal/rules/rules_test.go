@@ -37,8 +37,10 @@ func TestShippedRulesVerifiedFlags(t *testing.T) {
 			t.Errorf("%s should be verified", id)
 		}
 	}
-	if got["RW-COV-001"] {
-		t.Error("RW-COV-001 should stay unverified")
+	for _, id := range []string{"RW-COV-001", "RW-RED-002"} {
+		if !got[id] {
+			t.Errorf("%s should be verified", id)
+		}
 	}
 }
 
@@ -59,7 +61,7 @@ func TestShippedParametersAreExact(t *testing.T) {
 	}
 	for param, want := range map[string]string{
 		"clock_start":      "max(request_ts, onboarded_ts)",
-		"clock_end":        "transfer_initiated_ts",
+		"clock_end":        "transfer_initiated_ts or credited_ts",
 		"timezone":         "America/New_York",
 		"holiday_calendar": "config/holidays.yaml",
 	} {
@@ -140,7 +142,14 @@ func TestGetAndUnverified(t *testing.T) {
 	if _, ok := set.Get("nope"); ok {
 		t.Error("found nonexistent rule")
 	}
-	if len(set.Unverified()) == 0 || len(set.Unverified()) >= len(set.Rules) {
-		t.Errorf("unverified count %d of %d", len(set.Unverified()), len(set.Rules))
+	if n := len(set.Unverified()); n != 0 {
+		t.Errorf("every shipped rule is backed by supplied rule text, but %d are unverified", n)
+	}
+	mixed, err := rules.Parse([]byte(header + rule("") + "  - id: R2\n    description: d\n    source: s\n    verified: true\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := mixed.Unverified(); len(u) != 1 || u[0].ID != "R1" {
+		t.Errorf("Unverified() = %+v", u)
 	}
 }

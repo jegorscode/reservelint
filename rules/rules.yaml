@@ -1,51 +1,61 @@
-# reservewatch rules.
+# reservelint rules.
 #
-# `verified: true` means the owner confirmed the figure against rule text they pasted
-# (see each rule's `source` and `notes`). `verified: false` means placeholder, do not rely
-# on it. Reports show the verified flag next to every finding.
+# `verified: true` means the owner confirmed the figure against the rule text they supplied
+# (see each rule's `source` and `notes`). `verified: false` means placeholder: a failing check on
+# such a rule is reported as WARNING and never fails a run.
 #
 # Fields: id, check, description, parameters, source, verified, notes.
-# `null` parameters mean "unknown; waiting on rule text or a decision".
+# `check: null` rules are tracked and listed in every report but not evaluated.
 schema_version: 1
 
 rules:
   - id: RW-COV-001
     check: coverage
-    description: Total reserves must be at least the circulating supply.
+    description: >-
+      Reserve asset value must at all times equal or exceed the outstanding issuance value.
     parameters:
-      min_coverage_ratio: 1.0 # placeholder
-    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted)."
-    verified: false
-    notes: Confirm whether the ratio is on face value, market value, or another measure.
+      min_coverage_ratio: 1.0
+    source: "12 CFR 15.11(a)(1)(iii); reserve asset value as defined in Table 1 to 15.11(e), rows 15 to 17."
+    verified: true
+    notes: >-
+      Reserve asset value = total reserve assets minus outstanding repurchase-agreement
+      liabilities. Rows flagged is_repo_liability are treated as liabilities, so supply them or
+      coverage is overstated when the issuer has repos outstanding. Only a snapshot is checked, but
+      the rule applies at all times. A shortfall also triggers 15.11(g): notify the OCC on any day
+      reserves fall below the minimum, no new issuance until restored, and liquidation after 15
+      consecutive business days (the tool cannot see history; see RW-NOT-001).
 
   - id: RW-LIQ-001
     check: liquidity_floor
     description: >-
       At least a minimum share of reserve assets must be held as demand deposits (or other
-      deposits withdrawable on request at any time), share accounts payable on demand, or
-      money in an account with a Federal Reserve Bank.
+      deposits withdrawable on request at any time), share accounts payable on demand, or money
+      in an account with a Federal Reserve Bank.
     parameters:
       min_immediately_available_share: 0.05
-    source: "OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble)."
+    source: "12 CFR 15.11(c)(2)(i)."
     verified: true
     notes: >-
-      Figure taken from preamble text, not the codified regulation text; re-check against the
-      codified text. The input flag is_immediately_available must be set only for assets in the
-      categories above. The weekly-liquidity (5 business days) requirement was dropped in the
-      final rule, so none is modelled.
+      The input flag is_immediately_available must be set only for assets in the categories above;
+      the tool trusts it. The denominator is total reserve assets (repo liabilities excluded).
 
   - id: RW-CON-001
     check: counterparty_concentration
-    description: Exposure to any one counterparty may not exceed a maximum share of reserve assets.
+    description: >-
+      Exposure to any one counterparty may not exceed a maximum share of reserve assets, except
+      for exposures to the United States Government, to an appropriate custodian from assets held
+      in its custody, and from centrally cleared repurchase and reverse repurchase agreements.
     parameters:
       max_counterparty_share: 0.40
-    source: "OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble)."
+    source: "12 CFR 15.11(c)(2)(ii)(A) and (B); appropriate custodians per 15.11(d)."
     verified: true
     notes: >-
-      The rule is "subject to certain exceptions" that are NOT modelled; the check applies the
-      limit to every counterparty, so it can over-report. Exposure is measured as the sum of
-      reserve rows per counterparty over total reserve assets. Per-institution holdings and
-      weighted average maturity limits were dropped from the final rule.
+      Exempt exposures are marked with the reserves column concentration_exemption
+      (us_government, custodian, centrally_cleared_repo); they stay in the denominator but not in
+      any counterparty's numerator. The tool cannot verify the conditions of 15.11(d) (the issuer
+      identifies itself to the custodian, the custodian commits to GENIUS Act section 10, and
+      ongoing due diligence), so an exemption is taken as asserted by the issuer. Exposure is
+      measured as the sum of reserve rows per counterparty over total reserve assets.
 
   - id: RW-RED-001
     check: redemption_timing
@@ -56,8 +66,9 @@ rules:
       max_business_days: 2
       # Clock start: valid order received AND conditions to redeem satisfied (e.g. onboarding).
       clock_start: max(request_ts, onboarded_ts)
-      # Clock end: issuer has fully processed and initiated the outgoing transfer.
-      clock_end: transfer_initiated_ts
+      # Clock end: the issuer has fully processed and initiated the outgoing transfer or, if
+      # the customer asked, credited value to their account with the issuer (earliest if both).
+      clock_end: transfer_initiated_ts or credited_ts
       business_day: any day other than a Saturday, Sunday, or Federal holiday
       timezone: America/New_York
       # Counting (owner decision): business days AFTER the clock-start date, through the
@@ -67,41 +78,100 @@ rules:
       # Tool setting, not from the rule: warn when fewer than this many business days remain
       # before a breach. With max 2 and margin 1, exactly 2 days used is a near-breach warning.
       near_breach_margin_business_days: 1
-      # Requests with no transfer yet are measured up to the snapshot as_of.
+      # Requests with no transfer or credit yet are measured to the snapshot as_of.
       open_requests: measured to snapshot as_of
       # Rejected and cancelled requests are excluded from breach checks but counted in totals.
       excluded_statuses: rejected, cancelled
       # Reviewable data file. Default is the Federal holiday schedule per the statutory
       # definition; pointing this at a Fedwire calendar file switches schedules.
       holiday_calendar: config/holidays.yaml
-    source: "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble)."
+    source: "12 CFR 15.12(a)(2) and 15.12(c)(1) (two business days); business day per 12 CFR 15.2."
     verified: true
     notes: >-
-      Figures and definitions taken from preamble text, not the codified regulation text.
-      "Business day" means any day other than a Saturday, Sunday, or Federal holiday.
-      The counting convention, near-breach margin and handling of open, rejected and
-      cancelled requests are owner decisions recorded above, not text from the rule.
+      The two-business-day limit and the definition of when redemption occurs (15.12(a)(2)) are
+      from the codified text supplied. The clock-start rule (valid order plus satisfied
+      conditions such as onboarding, 15.12(a)(1)) and the business-day definition (15.2) were
+      described in the final rule preamble and are not in the text supplied. The counting
+      convention, near-breach margin and handling of open, rejected and cancelled requests are
+      owner decisions, not text from the rule. Discretionary limits on redemption can only be
+      imposed by the regulator (15.12(c)(2)); the tool does not model them.
+
+  - id: RW-RED-002
+    check: redemption_surge
+    description: >-
+      Redemption requests in excess of a share of outstanding issuance value in a single 24-hour
+      period require notice to the OCC within 24 hours.
+    parameters:
+      max_share_of_issuance: 0.10
+      window_hours: 24
+    source: "12 CFR 15.12(d)(1)."
+    verified: true
+    notes: >-
+      A duty to notify, not a violation: the finding always passes and is a WARNING when notice
+      is due; the tool cannot see whether notice was given. Every request received counts,
+      whatever its later status. The 24-hour period is applied as a rolling window starting at
+      each request; the rule text does not say whether it means rolling or calendar-day windows.
+      Outstanding issuance is the latest supply snapshot, for a single brand of stablecoin.
+
+  - id: RW-COMP-001
+    check: null # not implemented yet
+    description: >-
+      Reserve assets must comprise exclusively eligible assets: US currency, Federal Reserve
+      account balances, demand deposits and insured shares, Treasury securities of 93 days or less
+      remaining maturity, overnight repurchase and reverse repurchase agreements on those terms,
+      qualifying government money market fund shares, OCC-approved similar assets, and tokenized
+      forms of some of these.
+    parameters: {}
+    source: "12 CFR 15.11(b)."
+    verified: true
+    notes: >-
+      Tracked only. A check needs a controlled vocabulary for asset_type and remaining-maturity
+      tests against the snapshot date; none exists yet, so asset_type is free text today.
 
   - id: RW-STR-001
-    check: null # not implemented in MVP
-    description: Reserve stress testing requirement.
+    check: null # qualitative; not implemented
+    description: >-
+      Demonstrate operational capability to access and monetize reserve assets to meet
+      redemptions in normal and adverse conditions, and keep a buffer of reserve assets in excess
+      of outstanding issuance value where needed.
     parameters: {}
-    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 (text to be pasted)."
-    verified: false
-    notes: Tracked only. No check planned until the text is reviewed.
+    source: "12 CFR 15.11(a)(2) and (a)(3); diversification duties in 15.11(c)(1)."
+    verified: true
+    notes: >-
+      Qualitative operational requirements (access, haircuts, readiness); there is no numeric
+      test to run on these inputs. The earlier placeholder called this "stress testing"; the
+      text supplied does not use that term.
 
-  - id: RW-REP-001
-    check: null # not implemented in MVP
-    description: Weekly reserve reporting.
+  - id: RW-RPT-001
+    check: null # not implemented
+    description: >-
+      Publish the monthly composition of reserves on the issuer's website by noon on the last
+      day of each month, in a format substantially similar to Table 1 to 15.11(e).
     parameters: {}
-    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
-    verified: false
-    notes: Form name, content and cadence unconfirmed.
+    source: "12 CFR 15.11(e)."
+    verified: true
+    notes: >-
+      Replaces the earlier weekly and quarterly placeholders, which the text supplied does not
+      support. Tracked only; the tool does not produce the Table 1 template.
 
-  - id: RW-REP-002
-    check: null # not implemented in MVP
-    description: Quarterly reporting.
+  - id: RW-RPT-002
+    check: null # not implemented
+    description: >-
+      Have the previous month-end composition report examined by a registered public accounting
+      firm and published with it, and submit a monthly CEO and CFO accuracy certification to the OCC.
     parameters: {}
-    source: "UNVERIFIED. Citation pending: 12 CFR Part 15 reports section (text to be pasted)."
-    verified: false
-    notes: Form name, content and cadence unconfirmed.
+    source: "12 CFR 15.11(f)."
+    verified: true
+    notes: Tracked only. These are filings the tool cannot observe.
+
+  - id: RW-NOT-001
+    check: null # needs daily history
+    description: >-
+      Notify the OCC on any day reserve assets fall below the minimum; stop new issuance until
+      restored; begin liquidation and redemption after 15 consecutive business days below it.
+    parameters: {}
+    source: "12 CFR 15.11(g)."
+    verified: true
+    notes: >-
+      Tracked only. Counting consecutive business days below the minimum needs a daily series of
+      reserve and supply snapshots, but the tool checks one snapshot per run.

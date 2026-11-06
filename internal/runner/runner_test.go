@@ -128,24 +128,24 @@ func TestGoldenReports(t *testing.T) {
 func TestCleanDataPassesWithCaveats(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("clean"))
-	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 4 || rep.Partial {
+	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 5 || rep.Partial {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
 	joined := strings.Join(rep.Caveats, "\n")
-	if !strings.Contains(joined, "RW-COV-001") || !strings.Contains(joined, "Holiday calendar") {
-		t.Errorf("caveats should mention the unverified rule and calendar: %v", rep.Caveats)
+	if strings.Contains(joined, "RW-") || !strings.Contains(joined, "Holiday calendar") {
+		t.Errorf("only the unverified calendar should be a caveat: %v", rep.Caveats)
 	}
-	if len(rep.NotChecked) != 3 {
-		t.Errorf("expected 3 tracked-but-unchecked rules, got %+v", rep.NotChecked)
+	if len(rep.NotChecked) != 5 {
+		t.Errorf("expected 5 tracked-but-unchecked rules, got %+v", rep.NotChecked)
 	}
 }
 
 func TestViolationsFail(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("violations"))
-	// Three verified rules fail; the unverified coverage rule is capped at warning, and the
-	// vector data repeats one unkeyed line, which raises DUPLICATE_ROW_WARNING.
-	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 3 || rep.Counts.Warning != 2 {
+	// Coverage, liquidity, concentration and redemption timing all fail; the 24-hour surge check
+	// passes; the vector data repeats one unkeyed line, which raises DUPLICATE_ROW_WARNING.
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 4 || rep.Counts.Warning != 1 || rep.Counts.Pass != 1 {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
 	if in := rep.Inputs[0]; in.DuplicateCount() != 0 || in.IdenticalUnkeyedCount() != 1 || in.RowsRead != 16 || in.RowsUsed != 16 {
@@ -242,6 +242,53 @@ func TestAllowDuplicateRowsAcknowledgesWithoutWarning(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(rep.Caveats, "\n"), "--allow-duplicate-rows") {
 		t.Errorf("caveats should record the acknowledgement: %v", rep.Caveats)
+	}
+}
+
+// ---- codified rules: exemptions, repo liabilities, surge notice ------------------------
+
+func TestExemptionsAndRepoLiabilitiesEndToEnd(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean") // supply is 100,000,000
+	opts.RulesPath = writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n"+
+		"  - id: T-COV\n    check: coverage\n    description: d\n    source: s\n    verified: true\n    parameters:\n      min_coverage_ratio: 1.0\n"+
+		"  - id: T-CON\n    check: counterparty_concentration\n    description: d\n    source: s\n    verified: true\n    parameters:\n      max_counterparty_share: 0.40\n")
+	opts.ReservesPath = writeFile(t, "r.csv", "holding_id,asset_type,amount,counterparty,is_immediately_available,concentration_exemption,is_repo_liability\n"+
+		"H1,us_treasury_bill,60000000,US Treasury,false,us_government,\n"+
+		"H2,cash_deposit,40000000,Bank B,true,,\n"+
+		"H3,repo_liability,10000000,Dealer,false,,true\n")
+	rep := run(t, opts)
+	cov, con := rep.Findings[0], rep.Findings[1]
+	// Assets 100M less a 10M repo liability is 90M of reserve asset value against 100M issued.
+	if cov.Status != "fail" || cov.Details["reserve_asset_value"] != "90000000" || cov.Details["outstanding_repo_liabilities"] != "10000000" || cov.Details["shortfall"] != "10000000" {
+		t.Fatalf("coverage: %s %+v", cov.Status, cov.Details)
+	}
+	// The 60M US Government exposure is exempt; Bank B at 40M of 100M is exactly at the limit.
+	if con.Status != "pass" || con.Details["exempt_exposure_total"] != "60000000" || con.Details["top_counterparty"] != "Bank B" {
+		t.Fatalf("concentration: %s %+v", con.Status, con.Details)
+	}
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 {
+		t.Errorf("%s exit %d", rep.Status, rep.ExitCode)
+	}
+	if md := string(report.Markdown(rep)); !strings.Contains(md, "exempt_exposure_total: 60000000") || !strings.Contains(md, "us_government: 60000000") {
+		t.Error("markdown should show exempt exposure")
+	}
+}
+
+func TestRedemptionSurgeWarnsWithoutFailing(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean") // supply is 100,000,000; 10% is 10,000,000
+	opts.RulesPath = writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n"+
+		"  - id: T-SURGE\n    check: redemption_surge\n    description: d\n    source: s\n    verified: true\n    parameters:\n      max_share_of_issuance: 0.10\n      window_hours: 24\n")
+	opts.RedemptionsPath = writeFile(t, "red.csv", "request_ts,amount,status\n"+
+		"2027-01-25T10:00:00Z,6000000,rejected\n2027-01-25T20:00:00Z,6000000,completed\n2027-01-27T10:00:00Z,1,pending\n")
+	rep := run(t, opts)
+	f := rep.Findings[0]
+	if f.Status != "warning" || f.Details["notice_to_occ_required"] != true || f.Details["largest_window_amount"] != "12000000" {
+		t.Fatalf("%s %+v", f.Status, f.Details)
+	}
+	if rep.Status != report.StatusWarning || rep.ExitCode != 0 || rep.Calendar != nil {
+		t.Fatalf("%s exit %d calendar %v", rep.Status, rep.ExitCode, rep.Calendar)
 	}
 }
 
@@ -434,7 +481,7 @@ func TestAuditRecordHashesMatchFilesOnDisk(t *testing.T) {
 		}
 	}
 	if audit.ToolVersion == "" || audit.Result.Status != report.StatusFail || audit.Result.ExitCode != 1 ||
-		len(audit.Result.Findings) != 5 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 1 {
+		len(audit.Result.Findings) != 6 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 0 {
 		t.Errorf("audit result: %+v", audit.Result)
 	}
 	if !audit.Timestamp.Equal(fixedNow) || !strings.Contains(audit.Disclaimer, "Not legal advice") {

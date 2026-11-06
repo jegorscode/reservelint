@@ -7,8 +7,8 @@ redemption data against rules defined in `rules/rules.yaml` and writes a report.
 one static binary, no runtime to install.
 
 This tool does not determine legal compliance. A PASS means the supplied data met the
-thresholds in the rules file, nothing more. Several rules are unverified placeholders and the
-holiday calendar is unverified; reports say so. Synthetic data only: no real customer data
+thresholds in the rules file, nothing more. Rules with `verified: false` only ever
+WARN, and the holiday calendar is unverified; reports say so. Synthetic data only: no real customer data
 belongs in this repository.
 
 ## Install and run
@@ -80,9 +80,9 @@ the default paths resolve. Verify a download with `sha256sum -c SHA256SUMS.txt`.
 
 | File | Columns (`*` required) |
 |---|---|
-| reserves | `holding_id` (optional), `asset_type*`, `amount*` (> 0), `counterparty*`, `maturity_date`, `is_immediately_available*` |
+| reserves | `holding_id`, `asset_type*`, `amount*` (> 0), `counterparty*`, `maturity_date`, `is_immediately_available*`, `concentration_exemption` (`us_government`, `custodian`, `centrally_cleared_repo`), `is_repo_liability` |
 | supply | `as_of*` (RFC 3339 with offset), `circulating_supply*` (> 0) |
-| redemptions | `request_ts*`, `onboarded_ts`, `transfer_initiated_ts`, `amount*`, `status*` (`pending`, `completed`, `rejected`, `cancelled`) |
+| redemptions | `request_ts*`, `onboarded_ts`, `transfer_initiated_ts`, `credited_ts`, `amount*`, `status*` (`pending`, `completed`, `rejected`, `cancelled`) |
 
 Timestamps must carry a UTC offset.
 
@@ -117,14 +117,16 @@ an exact repeat is dropped and reported.
 
 ## Known limitations
 
-- Rule text for verified rules comes from the final-rule preamble, not the codified regulation.
-- Counterparty concentration ignores the rule's exceptions and can over-report.
+- Three points rest on the final rule preamble or owner decisions, not supplied codified text: the redemption clock start (12 CFR 15.12(a)(1)), the business-day definition (15.2) and the day-counting convention.
+- Concentration exemptions (`concentration_exemption`) and `is_repo_liability` are taken as supplied; the tool cannot verify the custodian conditions of 15.11(d).
+- Reserve composition (15.11(b): eligible asset types, 93-day maturity) is not checked: `asset_type` is free text.
+- The 24-hour redemption-surge window is applied as a rolling window; the rule text does not say rolling or calendar day.
 - `is_immediately_available` is trusted as supplied.
 - Identical reserve rows without a `holding_id` are kept (and warned about), so accidental repeats
   can overstate reserves until a `holding_id` is supplied; that is the cautious trade-off against
   merging real positions and understating reserves.
 - Holiday calendar covers 2026–2027 and is unverified.
-- Stress testing and weekly/quarterly reporting rules are tracked but not checked.
+- Composition, operational capability, the monthly composition report and certification, and the 15.11(g) notification and 15-day liquidation duties are tracked but not checked (the last needs daily history).
 - Out of scope: AML/sanctions checks, a UI, blockchain RPC calls (supply comes from a file).
 
 ## Layout

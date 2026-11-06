@@ -173,20 +173,27 @@ func evaluate(cal *calendar.Calendar, row model.RedemptionRow, asOf time.Time, m
 	if row.OnboardedTS != nil && row.OnboardedTS.After(ev.ClockStart) {
 		ev.ClockStart = *row.OnboardedTS
 	}
+	// Redemption occurs when the outgoing transfer is initiated or, at the customer's request,
+	// when value is credited to their account with the issuer (12 CFR 15.12(a)(2)). Use the
+	// earlier of the two if both are recorded.
+	end := row.TransferInitiatedTS
+	if row.CreditedTS != nil && (end == nil || row.CreditedTS.Before(*end)) {
+		end = row.CreditedTS
+	}
 	switch {
-	case row.TransferInitiatedTS != nil:
-		ev.ClockEnd = *row.TransferInitiatedTS
+	case end != nil:
+		ev.ClockEnd = *end
 	default:
 		ev.ClockEnd, ev.Open = asOf, true
 		if row.Status == model.StatusCompleted {
-			ev.Anomalies = append(ev.Anomalies, "status is completed but transfer_initiated_ts is missing; measured to as_of")
+			ev.Anomalies = append(ev.Anomalies, "status is completed but neither transfer_initiated_ts nor credited_ts is set; measured to as_of")
 		}
 	}
 	if ev.ClockEnd.Before(ev.ClockStart) {
 		if ev.Open {
 			ev.Anomalies = append(ev.Anomalies, "clock starts after the snapshot as_of; counted as 0 days")
 		} else {
-			ev.Anomalies = append(ev.Anomalies, "transfer_initiated_ts precedes the clock start; counted as 0 days")
+			ev.Anomalies = append(ev.Anomalies, "the completing event (transfer_initiated_ts or credited_ts) precedes the clock start; counted as 0 days")
 		}
 		ev.ClockEnd = ev.ClockStart
 	}

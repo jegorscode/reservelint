@@ -314,8 +314,8 @@ func TestEndToEndOnGoSyntheticData(t *testing.T) {
 				t.Errorf("%s/%s: passed=%v", name, f.Check, f.Passed)
 			}
 		}
-		if fs[0].RuleVerified { // coverage is the unverified rule
-			t.Errorf("%s: coverage should carry rule_verified=false", name)
+		if !fs[0].RuleVerified {
+			t.Errorf("%s: coverage is verified against the codified text", name)
 		}
 	}
 }

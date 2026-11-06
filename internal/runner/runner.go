@@ -46,7 +46,7 @@ func inputErr(err error) error { return &InputError{Err: err} }
 
 var knownChecks = map[string]bool{
 	engine.NameCoverage: true, engine.NameLiquidity: true,
-	engine.NameConcentration: true, engine.NameRedemption: true,
+	engine.NameConcentration: true, engine.NameRedemption: true, engine.NameSurge: true,
 }
 
 const maxListedErrors = 5
@@ -140,6 +140,8 @@ func Run(opts Options) (*report.Report, error) {
 			f, runErr = engine.CheckLiquidityFloor(rule, reserves.Rows)
 		case engine.NameConcentration:
 			f, runErr = engine.CheckCounterpartyConcentration(rule, reserves.Rows)
+		case engine.NameSurge:
+			f, runErr = engine.CheckRedemptionSurge(rule, redemptions.Rows, latest)
 		case engine.NameRedemption:
 			var res engine.RedemptionResult
 			if res, runErr = engine.CheckRedemptionTiming(rule, cal, redemptions.Rows, asOf); runErr == nil {
@@ -290,7 +292,7 @@ func redemptionSection(res engine.RedemptionResult) *report.Redemption {
 			continue
 		}
 		it := report.RedemptionItem{
-			RequestTS: ev.Row.RequestTS.UTC(), OnboardedTS: utcPtr(ev.Row.OnboardedTS), TransferInitiatedTS: utcPtr(ev.Row.TransferInitiatedTS),
+			RequestTS: ev.Row.RequestTS.UTC(), OnboardedTS: utcPtr(ev.Row.OnboardedTS), TransferInitiatedTS: utcPtr(ev.Row.TransferInitiatedTS), CreditedTS: utcPtr(ev.Row.CreditedTS),
 			Amount: ev.Row.Amount, Status: string(ev.Row.Status), Outcome: string(ev.Outcome),
 			ClockStart: ev.ClockStart.UTC(), ClockEnd: ev.ClockEnd.UTC(),
 			StartDate: ev.StartDate.String(), EndDate: ev.EndDate.String(),

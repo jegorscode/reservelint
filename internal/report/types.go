@@ -178,6 +178,7 @@ type RedemptionItem struct {
 	RequestTS           time.Time       `json:"request_ts"`
 	OnboardedTS         *time.Time      `json:"onboarded_ts"`
 	TransferInitiatedTS *time.Time      `json:"transfer_initiated_ts"`
+	CreditedTS          *time.Time      `json:"credited_ts"`
 	Amount              decimal.Decimal `json:"amount"`
 	Status              string          `json:"status"`
 	Outcome             string          `json:"outcome"`

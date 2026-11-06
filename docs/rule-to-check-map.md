@@ -5,36 +5,57 @@
 How each rule in [`rules/rules.yaml`](../rules/rules.yaml) maps to code, inputs and report
 output. Thresholds live only in the rules file; the code reads them from rule parameters.
 "Verified" is the owner's confirmation of the rule against rule text, as recorded in the file.
-The citations for verified rules refer to the final rule **preamble**, not the codified
-regulation text; re-check them against the codified text before relying on them.
+Sources are the codified text of 12 CFR 15.11 and 15.12 as supplied by the owner. Three points
+still rest on the final rule preamble or owner decisions, and are marked in the rules file: the
+clock-start rule for redemptions (15.12(a)(1)), the business-day definition (15.2), and the
+counting convention.
 
 | Rule | Check (code) | Inputs | Parameters (from rules.yaml) | Passes when | Verified |
 |---|---|---|---|---|---|
-| RW-COV-001 | `coverage` ([`CheckCoverage`](../internal/engine/engine.go)) | reserves, supply | `min_coverage_ratio` | total reserves / circulating supply >= ratio | **No** (placeholder) |
+| RW-COV-001 | `coverage` ([`CheckCoverage`](../internal/engine/engine.go)) | reserves, supply | `min_coverage_ratio` | (total reserve assets - repo liabilities) / outstanding issuance >= ratio | Yes |
 | RW-LIQ-001 | `liquidity_floor` ([`CheckLiquidityFloor`](../internal/engine/engine.go)) | reserves | `min_immediately_available_share` | share flagged `is_immediately_available` >= minimum | Yes |
-| RW-CON-001 | `counterparty_concentration` ([`CheckCounterpartyConcentration`](../internal/engine/engine.go)) | reserves | `max_counterparty_share` | largest counterparty share <= maximum | Yes |
+| RW-CON-001 | `counterparty_concentration` ([`CheckCounterpartyConcentration`](../internal/engine/engine.go)) | reserves | `max_counterparty_share` | largest non-exempt counterparty share <= maximum | Yes |
 | RW-RED-001 | `redemption_timing` ([`CheckRedemptionTiming`](../internal/engine/redemption.go)) | redemptions, supply `as_of`, holiday calendar | `max_business_days`, `near_breach_margin_business_days`, `timezone`, `holiday_calendar` | no evaluated redemption exceeds the maximum business days | Yes |
-| RW-STR-001 | none | none | none | not checked | No |
-| RW-REP-001 | none | none | none | not checked | No |
-| RW-REP-002 | none | none | none | not checked | No |
+| RW-RED-002 | `redemption_surge` ([`CheckRedemptionSurge`](../internal/engine/surge.go)) | redemptions, supply | `max_share_of_issuance`, `window_hours` | always (a duty to notify, not a violation); WARNING when requests in a 24-hour window exceed the share | Yes |
+| RW-COMP-001 | none | none | none | not checked (eligible asset types, 93-day maturity) | Yes |
+| RW-STR-001 | none | none | none | not checked (qualitative operational requirements) | Yes |
+| RW-RPT-001 | none | none | none | not checked (monthly composition report) | Yes |
+| RW-RPT-002 | none | none | none | not checked (monthly examination and certification) | Yes |
+| RW-NOT-001 | none | none | none | not checked (needs daily history) | Yes |
 
 Rules with no check are listed under "Rules tracked but not checked" in every report.
 
 ## Check details
 
-**Coverage.** `total reserves / circulating supply`, using the latest supply snapshot.
-Details record the totals and the shortfall in currency units.
+**Coverage.** Reserve asset value / outstanding issuance, using the latest supply snapshot.
+Reserve asset value is total reserve assets minus outstanding repurchase-agreement liabilities
+(Table 1 to 15.11(e), rows 15 to 17). Supply liabilities as reserves rows with
+`is_repo_liability` true; they are excluded from every other total. Details record the assets,
+liabilities, reserve asset value and shortfall. A shortfall also triggers the notification and
+issuance duties of 15.11(g), which the tool cannot track over time (RW-NOT-001).
 
 **Liquidity floor.** Share of reserve amount whose `is_immediately_available` flag is true.
 The tool trusts the flag: it must be set only for demand deposits, on-demand share accounts and
 Federal Reserve Bank balances (RW-LIQ-001 notes).
 
 **Counterparty concentration.** Rows are summed per counterparty after trimming, collapsing
-whitespace and ignoring case. The rule's exceptions are **not modelled**, so the check can
-over-report.
+whitespace and ignoring case. Rows marked `concentration_exemption` (`us_government`,
+`custodian`, `centrally_cleared_repo`, the exposures excluded by 15.11(c)(2)(ii)(B)) are left out
+of every counterparty's numerator but stay in the denominator, and the report lists the exempt
+amounts. The tool cannot verify the custodian conditions of 15.11(d); an exemption is taken as
+asserted by the issuer.
+
+**Redemption surge.** Finds the busiest rolling 24-hour window of requests (every status counts)
+and compares its total with `max_share_of_issuance` of the latest supply, exactly and strictly
+("in excess of"). Exceeding it means the issuer must notify the OCC within 24 hours; the tool
+cannot see that happen, so it reports a WARNING with the window, amount and request count, never
+a FAIL. The rule text does not say whether the period is rolling or a calendar day; rolling is
+the more conservative reading.
 
 **Redemption timing.**
-- Clock start: `max(request_ts, onboarded_ts)`; clock end: `transfer_initiated_ts`.
+- Clock start: `max(request_ts, onboarded_ts)`; clock end: `transfer_initiated_ts`, or
+  `credited_ts` when value was credited to the customer's account with the issuer (15.12(a)(2)).
+  If both are set, the earlier one ends the clock.
 - Requests with no transfer yet are measured to the snapshot `as_of` (default: latest supply
   `as_of`, override with `--as-of`).
 - Elapsed days are business days **after** the start date through the end date, as calendar

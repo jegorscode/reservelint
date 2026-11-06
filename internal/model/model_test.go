@@ -179,6 +179,47 @@ func TestHoldingIDIsPartOfTheRowKey(t *testing.T) {
 	}
 }
 
+func TestConcentrationExemptionAndRepoLiabilityColumns(t *testing.T) {
+	plain := mustReserve(t, nil)
+	if plain.ConcentrationExemption != "" || plain.IsRepoLiability {
+		t.Fatalf("defaults wrong: %+v", plain)
+	}
+	ex := mustReserve(t, map[string]string{"concentration_exemption": " US_Government "})
+	if ex.ConcentrationExemption != model.ExemptUSGovernment || ex.RowKey() == plain.RowKey() {
+		t.Errorf("exemption not parsed or not part of the key: %+v", ex)
+	}
+	liab := mustReserve(t, map[string]string{"is_repo_liability": "true"})
+	if !liab.IsRepoLiability || liab.RowKey() == plain.RowKey() {
+		t.Errorf("repo liability not parsed or not part of the key: %+v", liab)
+	}
+	if blank := mustReserve(t, map[string]string{"concentration_exemption": "", "is_repo_liability": " "}); blank.RowKey() != plain.RowKey() {
+		t.Error("blank optional columns must keep the Python-compatible key")
+	}
+	for name, o := range map[string]map[string]string{
+		"unknown exemption":  {"concentration_exemption": "friends"},
+		"bad liability flag": {"is_repo_liability": "maybe"},
+		"exempt liability":   {"is_repo_liability": "true", "concentration_exemption": "custodian"},
+	} {
+		if _, err := model.ParseReserve(reserve(o)); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+}
+
+func TestCreditedTimestampColumn(t *testing.T) {
+	plain, _ := model.ParseRedemption(redemption(nil))
+	credited, err := model.ParseRedemption(redemption(map[string]string{"credited_ts": "2027-02-02T15:00:00-05:00"}))
+	if err != nil || credited.CreditedTS == nil || credited.RowKey() == plain.RowKey() {
+		t.Fatalf("%v %+v", err, credited)
+	}
+	if blank, _ := model.ParseRedemption(redemption(map[string]string{"credited_ts": " "})); blank.CreditedTS != nil || blank.RowKey() != plain.RowKey() {
+		t.Error("blank credited_ts must behave as absent")
+	}
+	if _, err := model.ParseRedemption(redemption(map[string]string{"credited_ts": "2027-02-02T15:00:00"})); err == nil {
+		t.Error("naive credited_ts accepted")
+	}
+}
+
 func TestHoldingIDValidation(t *testing.T) {
 	for name, id := range map[string]string{"too long": strings.Repeat("x", 129), "control char": "HLD\x01"} {
 		if _, err := model.ParseReserve(reserve(map[string]string{"holding_id": id})); err == nil {
