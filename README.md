@@ -157,3 +157,8 @@ go test ./internal/runner -update   # after an intended report format change; re
 
 CI (GitHub Actions) runs vet and tests on Linux and Windows (plus the race detector on
 Linux), cross-compiles all six platform targets (including macOS), and checks that the shared test vectors still match the Python prototype.
+
+## License
+
+[MIT](LICENSE). The license covers the software; it does not change the disclaimer above. This
+tool is a monitoring and reporting aid, not legal advice and not an official OCC form.
