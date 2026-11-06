@@ -58,7 +58,7 @@
   ],
   "rules_file": {
     "path": "rules/rules.yaml",
-    "sha256": "4d5d037833dfd9eb47b91693e17b398ebb4f7b5e71e2d961d62277b8cbdfcb16"
+    "sha256": "8462938f45b3debbe47012c9a94059c53253d4a4faa695f4040f144cd088296c"
   },
   "holiday_calendar": {
     "path": "config/holidays.yaml",
@@ -200,7 +200,7 @@
       "threshold": "0",
       "citation": "12 CFR 15.11(b).",
       "rule_verified": true,
-      "rule_notes": "Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. An asset_type missing from this list fails the check; map it with asset_type_aliases if it is eligible. \"Overnight\" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.",
+      "rule_notes": "Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. The list is closed (\"must comprise exclusively\"): an asset_type missing from it, including a typo, FAILS the check (exit 1) and the message lists every allowed type. If the asset is eligible, add its name to asset_type_aliases. \"Overnight\" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.",
       "details": {
         "eligible_by_type": {
           "demand_deposit": "2945000",

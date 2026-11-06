@@ -120,7 +120,7 @@ Reserve assets must comprise exclusively eligible assets: US currency, Federal R
 - Observed: 0%; required at most 0%
 - Citation: 12 CFR 15.11(b).
 - Rule verified: yes
-- Rule notes: Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. An asset_type missing from this list fails the check; map it with asset_type_aliases if it is eligible. "Overnight" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.
+- Rule notes: Only the asset type and remaining maturity are tested. Collateral, overcollateralization and the tri-party, cleared or creditworthy-counterparty condition of reverse repos, money market fund holdings, OCC approval of other assets, and FDIC or NCUA deposit limits cannot be checked from the input and are listed as unverifiable. Rows flagged is_repo_liability are not reserve assets and are skipped. The list is closed ("must comprise exclusively"): an asset_type missing from it, including a typo, FAILS the check (exit 1) and the message lists every allowed type. If the asset is eligible, add its name to asset_type_aliases. "Overnight" is applied as at most one business day to maturity. The eligible type names are this tool's vocabulary, not regulatory terms.
 - eligible_by_type:
   - demand_deposit: 2945000
   - treasury_security: 93100000
@@ -177,7 +177,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 16 | 0 | 1 | 0 |
 | testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
 | testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
-| rules/rules.yaml | rules | `4d5d037833dfd9eb47b91693e17b398ebb4f7b5e71e2d961d62277b8cbdfcb16` | | | | | |
+| rules/rules.yaml | rules | `8462938f45b3debbe47012c9a94059c53253d4a4faa695f4040f144cd088296c` | | | | | |
 | config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
 Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
