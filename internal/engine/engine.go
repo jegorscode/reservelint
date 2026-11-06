@@ -39,17 +39,21 @@ type Finding struct {
 	Threshold    decimal.Decimal
 	Comparator   Comparator
 	Passed       bool
+	Warning      bool // passed, but with near-breach warnings
 	Citation     string
 	RuleVerified bool
 	Details      map[string]any
 }
 
-// Status is "pass" or "fail".
+// Status is "fail", "warning" (passed with near-breaches) or "pass".
 func (f Finding) Status() string {
-	if f.Passed {
-		return "pass"
+	switch {
+	case !f.Passed:
+		return "fail"
+	case f.Warning:
+		return "warning"
 	}
-	return "fail"
+	return "pass"
 }
 
 // Check names, as used in the `check` field of rules.yaml.

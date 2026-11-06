@@ -60,16 +60,27 @@ rules:
       clock_end: transfer_initiated_ts
       business_day: any day other than a Saturday, Sunday, or Federal holiday
       timezone: America/New_York
-      near_breach_margin_business_days: null # tool setting, owner to decide
-      # Reviewable data file (added in Phase 3). Default is the Federal holiday schedule per
-      # the statutory definition; pointing this at a Fedwire calendar file switches schedules.
+      # Counting (owner decision): business days AFTER the clock-start date, through the
+      # clock-end date, as calendar dates in the time zone above. Start Monday: Wednesday
+      # is 2 days used (at the limit), Thursday is 3 (breach).
+      counting: business days after the start date through the end date (T+n)
+      # Tool setting, not from the rule: warn when fewer than this many business days remain
+      # before a breach. With max 2 and margin 1, exactly 2 days used is a near-breach warning.
+      near_breach_margin_business_days: 1
+      # Requests with no transfer yet are measured up to the snapshot as_of.
+      open_requests: measured to snapshot as_of
+      # Rejected and cancelled requests are excluded from breach checks but counted in totals.
+      excluded_statuses: rejected, cancelled
+      # Reviewable data file. Default is the Federal holiday schedule per the statutory
+      # definition; pointing this at a Fedwire calendar file switches schedules.
       holiday_calendar: config/holidays.yaml
     source: "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble)."
     verified: true
     notes: >-
       Figures and definitions taken from preamble text, not the codified regulation text.
       "Business day" means any day other than a Saturday, Sunday, or Federal holiday.
-      Counting convention (whether day 0 is the start date) still to confirm in Phase 3.
+      The counting convention, near-breach margin and handling of open, rejected and
+      cancelled requests are owner decisions recorded above, not text from the rule.
 
   - id: RW-STR-001
     check: null # not implemented in MVP

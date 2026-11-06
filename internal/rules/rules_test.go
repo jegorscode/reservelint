@@ -67,8 +67,8 @@ func TestShippedParametersAreExact(t *testing.T) {
 			t.Errorf("%s = %q, %v", param, got, err)
 		}
 	}
-	if red.Has("near_breach_margin_business_days") {
-		t.Error("near-breach margin should still be null")
+	if n, err := red.Int("near_breach_margin_business_days"); err != nil || n != 1 {
+		t.Errorf("near-breach margin = %d, %v", n, err)
 	}
 }
 
