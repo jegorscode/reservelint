@@ -20,21 +20,27 @@ def make_rule(rule_id="R1", **overrides):
     return {**base, **overrides}
 
 
-def test_shipped_rules_load_and_are_all_unverified():
-    rules = load_rules(RULES_PATH)
-    assert len(rules.rules) >= 4
-    assert all(not r.verified for r in rules.rules)
-    assert rules.unverified() == rules.rules
+def test_shipped_rules_load():
+    assert len(load_rules(RULES_PATH).rules) >= 4
 
 
-def test_shipped_rules_have_citation_placeholders():
+def test_verified_flag_matches_citation():
     for rule in load_rules(RULES_PATH).rules:
-        assert rule.source.startswith("UNVERIFIED")
+        assert rule.verified != rule.source.startswith("UNVERIFIED"), rule.id
 
 
-def test_open_questions_are_null_not_guessed():
+def test_only_pasted_rules_are_verified():
+    rules = load_rules(RULES_PATH)
+    verified = {r.id for r in rules.rules if r.verified}
+    assert verified == {"RW-LIQ-001", "RW-CON-001", "RW-RED-001"}
+    assert "RW-COV-001" in {r.id for r in rules.unverified()}
+
+
+def test_redemption_clock_defined():
     params = load_rules(RULES_PATH).get("RW-RED-001").parameters
-    assert params["clock_start"] is None and params["clock_end"] is None
+    assert params["clock_start"] == "max(request_ts, onboarded_ts)"
+    assert params["clock_end"] == "transfer_initiated_ts"
+    assert params["timezone"] == "America/New_York"
 
 
 def test_duplicate_ids_rejected():

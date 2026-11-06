@@ -37,7 +37,7 @@ def _blank_to_none(value: Any) -> Any:
     return value
 
 
-def _norm_text(value: str) -> str:
+def norm_text(value: str) -> str:
     return " ".join(value.split()).casefold()
 
 
@@ -73,9 +73,9 @@ class ReserveRow(_Row):
 
     def key_fields(self) -> dict[str, Any]:
         return {
-            "asset_type": _norm_text(self.asset_type),
+            "asset_type": norm_text(self.asset_type),
             "amount": _norm_amount(self.amount),
-            "counterparty": _norm_text(self.counterparty),
+            "counterparty": norm_text(self.counterparty),
             "maturity_date": self.maturity_date.isoformat() if self.maturity_date else None,
             "is_immediately_available": self.is_immediately_available,
         }
