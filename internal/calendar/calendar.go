@@ -14,6 +14,7 @@ import (
 	"time"
 	_ "time/tzdata" // embed zone data so a static Windows binary can load America/New_York
 
+	"github.com/jegorscode/reservelint/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -67,6 +68,7 @@ type Calendar struct {
 	Name     string
 	Kind     string
 	Verified bool
+	SHA256   string // hash of the exact file bytes that were parsed
 	loc      *time.Location
 	from, to Date
 	holidays map[Date]string // observed date -> holiday name
@@ -104,6 +106,7 @@ func Load(path, timezone string) (*Calendar, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	c.SHA256 = config.HashBytes(data)
 	return c, nil
 }
 

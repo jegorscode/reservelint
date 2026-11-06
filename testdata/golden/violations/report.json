@@ -1,0 +1,382 @@
+{
+  "tool": "reservelint",
+  "tool_version": "0.1.0-dev",
+  "disclaimer": "Monitoring and reporting aid. Not legal advice. Not an official OCC form.",
+  "generated_at": "2027-02-01T21:30:00Z",
+  "as_of": "2027-02-01T21:00:00Z",
+  "status": "FAIL",
+  "exit_code": 1,
+  "partial_run": false,
+  "counts": {
+    "pass": 0,
+    "warning": 0,
+    "fail": 4
+  },
+  "options": {
+    "allow_invalid_rows": false
+  },
+  "inputs": [
+    {
+      "role": "reserves",
+      "path": "testdata/vectors/violations/reserves.csv",
+      "sha256": "7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf",
+      "rows_read": 16,
+      "rows_used": 15,
+      "duplicates": [
+        {
+          "row_key": "e3f8681aec6172cab5f719b64d427a40369eecd0f60f66b56d3995c8f48ddfa8",
+          "first_position": 2,
+          "repeat_positions": [
+            17
+          ]
+        }
+      ],
+      "invalid_rows": []
+    },
+    {
+      "role": "supply",
+      "path": "testdata/vectors/violations/supply.csv",
+      "sha256": "64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3",
+      "rows_read": 1,
+      "rows_used": 1,
+      "duplicates": [],
+      "invalid_rows": []
+    },
+    {
+      "role": "redemptions",
+      "path": "testdata/vectors/violations/redemptions.csv",
+      "sha256": "6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2",
+      "rows_read": 60,
+      "rows_used": 60,
+      "duplicates": [],
+      "invalid_rows": []
+    }
+  ],
+  "rules_file": {
+    "path": "rules/rules.yaml",
+    "sha256": "e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21"
+  },
+  "holiday_calendar": {
+    "path": "config/holidays.yaml",
+    "sha256": "1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137",
+    "name": "US Federal holidays",
+    "kind": "federal",
+    "verified": false,
+    "timezone": "America/New_York",
+    "coverage_from": "2026-01-01",
+    "coverage_to": "2027-12-31"
+  },
+  "findings": [
+    {
+      "rule_id": "RW-COV-001",
+      "check": "coverage",
+      "description": "Total reserves must be at least the circulating supply.",
+      "status": "fail",
+      "observed": "0.95",
+      "comparator": ">=",
+      "threshold": "1",
+      "citation": "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).",
+      "rule_verified": false,
+      "rule_notes": "Confirm whether the ratio is on face value, market value, or another measure.",
+      "details": {
+        "circulating_supply": "100000000",
+        "shortfall": "5000000",
+        "supply_as_of": "2027-02-01T21:00:00Z",
+        "total_reserves": "95000000"
+      }
+    },
+    {
+      "rule_id": "RW-LIQ-001",
+      "check": "liquidity_floor",
+      "description": "At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.",
+      "status": "fail",
+      "observed": "0.02",
+      "comparator": ">=",
+      "threshold": "0.05",
+      "citation": "OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble).",
+      "rule_verified": true,
+      "rule_notes": "Figure taken from preamble text, not the codified regulation text; re-check against the codified text. The input flag is_immediately_available must be set only for assets in the categories above. The weekly-liquidity (5 business days) requirement was dropped in the final rule, so none is modelled.",
+      "details": {
+        "immediately_available": "1900000",
+        "total_reserves": "95000000"
+      }
+    },
+    {
+      "rule_id": "RW-CON-001",
+      "check": "counterparty_concentration",
+      "description": "Exposure to any one counterparty may not exceed a maximum share of reserve assets.",
+      "status": "fail",
+      "observed": "0.55",
+      "comparator": "<=",
+      "threshold": "0.4",
+      "citation": "OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble).",
+      "rule_verified": true,
+      "rule_notes": "The rule is \"subject to certain exceptions\" that are NOT modelled; the check applies the limit to every counterparty, so it can over-report. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets. Per-institution holdings and weighted average maturity limits were dropped from the final rule.",
+      "details": {
+        "shares": {
+          "Synthetic Bank Alpha": "0.55",
+          "Synthetic Bank Beta": "0.1",
+          "Synthetic Bank Epsilon": "0.15",
+          "Synthetic Custody Gamma": "0.1",
+          "Synthetic Trust Delta": "0.1"
+        },
+        "top_counterparty": "Synthetic Bank Alpha",
+        "top_counterparty_amount": "52250000",
+        "total_reserves": "95000000"
+      }
+    },
+    {
+      "rule_id": "RW-RED-001",
+      "check": "redemption_timing",
+      "description": "A timely redemption may not exceed a maximum number of business days following the redemption request.",
+      "status": "fail",
+      "observed": "8",
+      "comparator": "<=",
+      "threshold": "2",
+      "citation": "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble).",
+      "rule_verified": true,
+      "rule_notes": "Figures and definitions taken from preamble text, not the codified regulation text. \"Business day\" means any day other than a Saturday, Sunday, or Federal holiday. The counting convention, near-breach margin and handling of open, rejected and cancelled requests are owner decisions recorded above, not text from the rule.",
+      "details": {
+        "as_of": "2027-02-01T21:00:00Z",
+        "breach_amount": "2919323.2",
+        "breaches": 10,
+        "calendar": "US Federal holidays",
+        "calendar_kind": "federal",
+        "calendar_verified": false,
+        "cancelled": 0,
+        "excluded_amount": "0",
+        "max_business_days_used": 8,
+        "near_breach_margin": 1,
+        "ok": 50,
+        "open_requests": 3,
+        "rejected": 0,
+        "requests_evaluated": 60,
+        "requests_total": 60,
+        "rows_with_anomalies": 1,
+        "timezone": "America/New_York",
+        "total_amount": "15505629.82",
+        "warning_amount": "0",
+        "warnings": 0
+      }
+    }
+  ],
+  "redemption_timing": {
+    "summary": {
+      "total": 60,
+      "evaluated": 60,
+      "ok": 50,
+      "warning": 0,
+      "breach": 10,
+      "rejected": 0,
+      "cancelled": 0,
+      "open": 3,
+      "with_anomalies": 1,
+      "max_business_days_used": 8,
+      "total_amount": "15505629.82",
+      "excluded_amount": "0",
+      "warning_amount": "0",
+      "breach_amount": "2919323.2"
+    },
+    "items": [
+      {
+        "request_ts": "2027-01-04T07:23:58Z",
+        "onboarded_ts": "2026-10-01T17:03:45Z",
+        "transfer_initiated_ts": "2027-01-08T17:27:44Z",
+        "amount": "390269.54",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-04T07:23:58Z",
+        "clock_end": "2027-01-08T17:27:44Z",
+        "start_date": "2027-01-04",
+        "end_date": "2027-01-08",
+        "due_date": "2027-01-06",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-05T02:26:54Z",
+        "onboarded_ts": "2027-01-05T05:39:00Z",
+        "transfer_initiated_ts": "2027-01-05T05:23:39Z",
+        "amount": "137014.06",
+        "status": "completed",
+        "outcome": "ok",
+        "clock_start": "2027-01-05T05:39:00Z",
+        "clock_end": "2027-01-05T05:39:00Z",
+        "start_date": "2027-01-05",
+        "end_date": "2027-01-05",
+        "due_date": "2027-01-07",
+        "business_days_elapsed": 0,
+        "open": false,
+        "anomalies": [
+          "transfer_initiated_ts precedes the clock start; counted as 0 days"
+        ]
+      },
+      {
+        "request_ts": "2027-01-05T15:40:41Z",
+        "onboarded_ts": "2026-10-05T01:25:43Z",
+        "transfer_initiated_ts": "2027-01-11T23:37:00Z",
+        "amount": "452212.02",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-05T15:40:41Z",
+        "clock_end": "2027-01-11T23:37:00Z",
+        "start_date": "2027-01-05",
+        "end_date": "2027-01-11",
+        "due_date": "2027-01-07",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-09T12:31:16Z",
+        "onboarded_ts": "2025-12-29T13:28:21Z",
+        "transfer_initiated_ts": "2027-01-14T19:36:08Z",
+        "amount": "68225.95",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-09T12:31:16Z",
+        "clock_end": "2027-01-14T19:36:08Z",
+        "start_date": "2027-01-09",
+        "end_date": "2027-01-14",
+        "due_date": "2027-01-12",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-15T11:06:18Z",
+        "onboarded_ts": "2026-11-18T05:57:23Z",
+        "transfer_initiated_ts": "2027-01-23T23:50:53Z",
+        "amount": "393954.81",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-15T11:06:18Z",
+        "clock_end": "2027-01-23T23:50:53Z",
+        "start_date": "2027-01-15",
+        "end_date": "2027-01-23",
+        "due_date": "2027-01-20",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-15T21:52:08Z",
+        "onboarded_ts": "2025-12-19T13:49:08Z",
+        "transfer_initiated_ts": "2027-01-22T19:21:10Z",
+        "amount": "146250.29",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-15T21:52:08Z",
+        "clock_end": "2027-01-22T19:21:10Z",
+        "start_date": "2027-01-15",
+        "end_date": "2027-01-22",
+        "due_date": "2027-01-20",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-18T08:39:45Z",
+        "onboarded_ts": "2027-01-18T09:42:31Z",
+        "transfer_initiated_ts": "2027-01-24T05:28:37Z",
+        "amount": "116763.02",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-18T09:42:31Z",
+        "clock_end": "2027-01-24T05:28:37Z",
+        "start_date": "2027-01-18",
+        "end_date": "2027-01-24",
+        "due_date": "2027-01-20",
+        "business_days_elapsed": 4,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-20T21:00:00Z",
+        "onboarded_ts": "2026-12-21T21:00:00Z",
+        "transfer_initiated_ts": null,
+        "amount": "496466.84",
+        "status": "pending",
+        "outcome": "breach",
+        "clock_start": "2027-01-20T21:00:00Z",
+        "clock_end": "2027-02-01T21:00:00Z",
+        "start_date": "2027-01-20",
+        "end_date": "2027-02-01",
+        "due_date": "2027-01-22",
+        "business_days_elapsed": 8,
+        "open": true,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-20T21:00:00Z",
+        "onboarded_ts": "2026-12-21T21:00:00Z",
+        "transfer_initiated_ts": null,
+        "amount": "357266.44",
+        "status": "pending",
+        "outcome": "breach",
+        "clock_start": "2027-01-20T21:00:00Z",
+        "clock_end": "2027-02-01T21:00:00Z",
+        "start_date": "2027-01-20",
+        "end_date": "2027-02-01",
+        "due_date": "2027-01-22",
+        "business_days_elapsed": 8,
+        "open": true,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-22T04:42:22Z",
+        "onboarded_ts": "2026-08-02T22:13:31Z",
+        "transfer_initiated_ts": "2027-01-29T12:03:43Z",
+        "amount": "353717.89",
+        "status": "completed",
+        "outcome": "breach",
+        "clock_start": "2027-01-22T04:42:22Z",
+        "clock_end": "2027-01-29T12:03:43Z",
+        "start_date": "2027-01-21",
+        "end_date": "2027-01-29",
+        "due_date": "2027-01-25",
+        "business_days_elapsed": 6,
+        "open": false,
+        "anomalies": []
+      },
+      {
+        "request_ts": "2027-01-26T09:30:31Z",
+        "onboarded_ts": "2026-05-15T22:32:24Z",
+        "transfer_initiated_ts": null,
+        "amount": "144196.4",
+        "status": "pending",
+        "outcome": "breach",
+        "clock_start": "2027-01-26T09:30:31Z",
+        "clock_end": "2027-02-01T21:00:00Z",
+        "start_date": "2027-01-26",
+        "end_date": "2027-02-01",
+        "due_date": "2027-01-28",
+        "business_days_elapsed": 4,
+        "open": true,
+        "anomalies": []
+      }
+    ]
+  },
+  "rules_not_checked": [
+    {
+      "rule_id": "RW-STR-001",
+      "description": "Reserve stress testing requirement.",
+      "reason": "no check implemented"
+    },
+    {
+      "rule_id": "RW-REP-001",
+      "description": "Weekly reserve reporting.",
+      "reason": "no check implemented"
+    },
+    {
+      "rule_id": "RW-REP-002",
+      "description": "Quarterly reporting.",
+      "reason": "no check implemented"
+    }
+  ],
+  "caveats": [
+    "Rule RW-COV-001 (coverage) is not verified against the rule text; its threshold is a placeholder and its result is indicative only.",
+    "Holiday calendar \"US Federal holidays\" is not verified against an official schedule; business-day counts depend on it."
+  ]
+}

@@ -2,47 +2,117 @@
 
 > **Monitoring and reporting aid. Not legal advice. Not an official OCC form.**
 
-An open-source, auditable CLI that checks stablecoin issuer reserve data against rules
-defined in `rules/rules.yaml` and produces reports. Written in Go: one static binary, no
-runtime to install.
+An open-source, auditable CLI that checks permitted payment stablecoin issuer reserve and
+redemption data against rules defined in `rules/rules.yaml` and writes a report. Written in Go:
+one static binary, no runtime to install.
 
-**Status: Go rewrite, Phase 3.** Models, rules loader, ingestion with dedupe, the coverage,
-liquidity, concentration and redemption-timing checks, a business-day calendar, a synthetic
-data generator and a minimal CLI exist (checks are not wired into the CLI until Phase 4).
-Reports and the audit log come next.
-The Python prototype (ingestion and reserve checks) lives in [legacy-python/](legacy-python/)
-and is used only to cross-check the Go code.
+This tool does not determine legal compliance. A PASS means the supplied data met the
+thresholds in the rules file, nothing more. Several rules are unverified placeholders and the
+holiday calendar is unverified; reports say so. Synthetic data only: no real customer data
+belongs in this repository.
+
+## Install and run
+
+```bash
+go build -o reservelint ./cmd/reservelint          # or: go install ./cmd/reservelint
+reservelint generate-synthetic --out data/synthetic
+reservelint check \
+  --rules rules/rules.yaml \
+  --reserves data/synthetic/violations/reserves.csv \
+  --supply data/synthetic/violations/supply.csv \
+  --redemptions data/synthetic/violations/redemptions.csv \
+  --out report/
+```
+
+Static builds for any platform: `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-X github.com/jegorscode/reservelint/internal/meta.Version=1.0.0" ./cmd/reservelint`.
+
+### `check` flags
+
+| Flag | Meaning |
+|---|---|
+| `--rules` | rules file (default `rules/rules.yaml`) |
+| `--reserves`, `--supply`, `--redemptions` | input files, `.csv` or `.json` (required) |
+| `--holidays` | holiday calendar; defaults to the redemption rule's `holiday_calendar` |
+| `--out` | report directory (default `report`) |
+| `--as-of` | snapshot time, RFC 3339; defaults to the latest supply `as_of` |
+| `--allow-invalid-rows` | continue past invalid rows and report a PARTIAL run (debugging) |
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | PASS or WARNING |
+| 1 | at least one FAIL finding (the report is still written) |
+| 2 | usage, input, parsing or configuration error (nothing is written) |
+
+By default any invalid input row stops the run with exit 2. With `--allow-invalid-rows` the
+run continues on the valid rows, the report is marked PARTIAL, and the overall status can
+never be a clean PASS.
+
+## Output
+
+`report/` receives `report.md` (for people), `findings.csv` (spreadsheets), `report.json`
+(programs) and a new `audit-<timestamp>.json` on every run. The audit record is never
+overwritten. It stores the tool version, options, SHA-256 of every input file, the rules file
+and the holiday calendar, the hashes of the three report files, and the results, so a run can
+be reproduced and checked. Every finding carries its rule id, observed value, threshold,
+pass/fail/warning, and the rule citation. See the [rule-to-check map](docs/rule-to-check-map.md).
+
+## Input files
+
+| File | Columns (`*` required) |
+|---|---|
+| reserves | `asset_type*`, `amount*` (> 0), `counterparty*`, `maturity_date`, `is_immediately_available*` |
+| supply | `as_of*` (RFC 3339 with offset), `circulating_supply*` (> 0) |
+| redemptions | `request_ts*`, `onboarded_ts`, `transfer_initiated_ts`, `amount*`, `status*` (`pending`, `completed`, `rejected`, `cancelled`) |
+
+Timestamps must carry a UTC offset. Identical rows (ignoring case, spacing and number
+formatting) are counted once and reported as duplicates, so loading is idempotent.
+Two genuinely identical reserve lines would therefore be merged.
 
 ## Principles
-- No regulatory threshold is hardcoded. Every rule lives in `rules/rules.yaml` with a
-  citation and a `verified` flag; `verified: false` means placeholder.
-- Money and ratios use exact decimals (`shopspring/decimal`), never `float64`. Rule numbers
-  are parsed from their YAML text, so `0.05` never passes through a binary float.
-- Synthetic data only. No real customer data belongs in this repository.
+
+- No regulatory threshold is hardcoded. Each rule has a citation and a `verified` flag;
+  `verified: false` means placeholder.
+- Money and ratios use exact decimals (`shopspring/decimal`), never `float64`. Rule numbers are
+  read from their YAML text. Pass/fail is decided by exact comparison, not a rounded ratio.
+- Business days follow the Federal holiday schedule in `config/holidays.yaml` (a reviewable data
+  file). Pointing `holiday_calendar` at a Fedwire-style file switches schedules. Dates outside the
+  file's declared coverage are an error.
+
+## Known limitations
+
+- Rule text for verified rules comes from the final-rule preamble, not the codified regulation.
+- Counterparty concentration ignores the rule's exceptions and can over-report.
+- `is_immediately_available` is trusted as supplied.
+- Holiday calendar covers 2026–2027 and is unverified.
+- Stress testing and weekly/quarterly reporting rules are tracked but not checked.
+- Out of scope: AML/sanctions checks, a UI, blockchain RPC calls (supply comes from a file).
 
 ## Layout
+
 | Path | Purpose |
 |---|---|
 | `cmd/reservelint` | entry point |
 | `internal/model` | validated rows and deterministic row keys |
 | `internal/rules`, `internal/config` | rule schema; file loading and SHA-256 hashing |
+| `internal/ingest` | CSV/JSON loading with dedupe and row errors |
+| `internal/engine` | coverage, liquidity, concentration and redemption-timing checks |
+| `internal/calendar`, `config/holidays.yaml` | business-day math in America/New_York |
+| `internal/runner` | one check run, from files to a finalized report |
+| `internal/report` | Markdown, CSV, JSON and audit-log writers |
 | `internal/synthetic` | seeded sample data with deliberate violations |
 | `internal/cli` | cobra commands |
-| `internal/ingest`, `internal/engine` | CSV/JSON loading with dedupe; reserve checks |
-| `internal/calendar`, `config/holidays.yaml` | business-day math in America/New_York; reviewable holiday file (unverified) |
-| `internal/report` | planned (Phase 4) |
-| `testdata/vectors` | shared vectors exported from the Python prototype |
+| `testdata/vectors` | datasets and expected results exported from the Python prototype |
+| `testdata/golden` | golden report files (regenerate: `go test ./internal/runner -update`) |
+| `legacy-python/` | frozen Python prototype used only to cross-check the Go code |
 
-## Try it
+## Development
+
 ```bash
-go test ./...
-go run ./cmd/reservelint generate-synthetic --out data/synthetic
+go vet ./... && go test ./...
+go test ./internal/runner -update   # after an intended report format change; review the diff
 ```
 
-## Roadmap
-1. Phase 1: models, rules, synthetic data, CLI skeleton (this).
-2. Phase 2: ingestion with dedupe; coverage, liquidity, concentration checks.
-3. Phase 3: business-day calendar (`config/holidays.yaml`, Federal schedule by default) and
-   redemption timing.
-4. Phase 4: Markdown/CSV/JSON reports, audit log, golden-file test, full README with the
-   rule-to-check map, release builds.
+CI (GitHub Actions) runs vet and tests on Linux, Windows and macOS, cross-builds six
+platform targets, and checks that the shared test vectors still match the Python prototype.

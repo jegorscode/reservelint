@@ -5,7 +5,7 @@ dist/
 build/
 .pytest_cache/
 .ruff_cache/
-report/
+/report/
 data/synthetic/
 bin/
 legacy-python/.venv/

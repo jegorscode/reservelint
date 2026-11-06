@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jegorscode/reservelint/internal/config"
 	"github.com/jegorscode/reservelint/internal/model"
 )
 
@@ -40,7 +41,8 @@ type Duplicate struct {
 // Result is the outcome of loading one file.
 type Result[T model.Keyed] struct {
 	Path       string
-	Rows       []T // validated, de-duplicated, in file order
+	SHA256     string // hash of the exact file bytes that were parsed
+	Rows       []T    // validated, de-duplicated, in file order
 	Duplicates []Duplicate
 	Errors     []RowError
 	RowsRead   int // data rows seen in the file, valid or not
@@ -108,6 +110,7 @@ func load[T model.Keyed](path string, required []string, parse func(map[string]s
 	if err != nil {
 		return nil, fileErr(path, "cannot read file: %v", err)
 	}
+	sum := config.HashBytes(data) // hash of the file exactly as stored, BOM included
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
 
 	var raw []rawRecord
@@ -126,7 +129,7 @@ func load[T model.Keyed](path string, required []string, parse func(map[string]s
 		return nil, fileErr(path, "file contains no data rows")
 	}
 
-	res := &Result[T]{Path: path, RowsRead: len(raw)}
+	res := &Result[T]{Path: path, SHA256: sum, RowsRead: len(raw)}
 	first := map[string]int{}
 	repeats := map[string][]int{}
 	var order []string

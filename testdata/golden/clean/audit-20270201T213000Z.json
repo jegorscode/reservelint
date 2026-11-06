@@ -1,0 +1,177 @@
+{
+  "timestamp": "2027-02-01T21:30:00Z",
+  "tool": "reservelint",
+  "tool_version": "0.1.0-dev",
+  "disclaimer": "Monitoring and reporting aid. Not legal advice. Not an official OCC form.",
+  "options": {
+    "allow_invalid_rows": false
+  },
+  "as_of": "2027-02-01T21:00:00Z",
+  "inputs": [
+    {
+      "role": "reserves",
+      "path": "testdata/vectors/clean/reserves.csv",
+      "sha256": "5932ad67332df7319566b0877b81d3391bf61db7818afcc5eb95f7630f8b02f6"
+    },
+    {
+      "role": "supply",
+      "path": "testdata/vectors/clean/supply.csv",
+      "sha256": "64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3"
+    },
+    {
+      "role": "redemptions",
+      "path": "testdata/vectors/clean/redemptions.csv",
+      "sha256": "eaebffca2e4a3ac75ad929d9e9e3f6331e02da8034ab38855ecc4858c7390c15"
+    },
+    {
+      "role": "rules",
+      "path": "rules/rules.yaml",
+      "sha256": "e9267c6318359e79ab18135b99fe107cadaa76d7c467ce47e0bfd7ebbaf2dc21"
+    },
+    {
+      "role": "holiday_calendar",
+      "path": "config/holidays.yaml",
+      "sha256": "1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137"
+    }
+  ],
+  "outputs": [
+    {
+      "role": "report.md",
+      "path": "report.md",
+      "sha256": "1e48062db22602337e08147943867a9d4b444a4b363099db7a6f6aeaac6bff69"
+    },
+    {
+      "role": "findings.csv",
+      "path": "findings.csv",
+      "sha256": "58683d8ef4c5f65ab4ae10a5ad0b4318a4112dc19c0ae5fb6340588f91e58fca"
+    },
+    {
+      "role": "report.json",
+      "path": "report.json",
+      "sha256": "b601d670475269c37d607b7f8610084f45a8eb47e236d4c772fc6831a6c34ea4"
+    }
+  ],
+  "result": {
+    "status": "PASS",
+    "exit_code": 0,
+    "partial_run": false,
+    "counts": {
+      "pass": 4,
+      "warning": 0,
+      "fail": 0
+    },
+    "findings": [
+      {
+        "rule_id": "RW-COV-001",
+        "check": "coverage",
+        "description": "Total reserves must be at least the circulating supply.",
+        "status": "pass",
+        "observed": "1.02",
+        "comparator": ">=",
+        "threshold": "1",
+        "citation": "UNVERIFIED. Citation pending: 12 CFR Part 15 reserve assets section (text to be pasted).",
+        "rule_verified": false,
+        "rule_notes": "Confirm whether the ratio is on face value, market value, or another measure.",
+        "details": {
+          "circulating_supply": "100000000",
+          "shortfall": "0",
+          "supply_as_of": "2027-02-01T21:00:00Z",
+          "total_reserves": "102000000"
+        }
+      },
+      {
+        "rule_id": "RW-LIQ-001",
+        "check": "liquidity_floor",
+        "description": "At least a minimum share of reserve assets must be held as demand deposits (or other deposits withdrawable on request at any time), share accounts payable on demand, or money in an account with a Federal Reserve Bank.",
+        "status": "pass",
+        "observed": "0.1999999998039216",
+        "comparator": ">=",
+        "threshold": "0.05",
+        "citation": "OCC final rule, 12 CFR 15.11(c)(2)(i) (as described in the final rule preamble).",
+        "rule_verified": true,
+        "rule_notes": "Figure taken from preamble text, not the codified regulation text; re-check against the codified text. The input flag is_immediately_available must be set only for assets in the categories above. The weekly-liquidity (5 business days) requirement was dropped in the final rule, so none is modelled.",
+        "details": {
+          "immediately_available": "20399999.98",
+          "total_reserves": "102000000"
+        }
+      },
+      {
+        "rule_id": "RW-CON-001",
+        "check": "counterparty_concentration",
+        "description": "Exposure to any one counterparty may not exceed a maximum share of reserve assets.",
+        "status": "pass",
+        "observed": "0.2170107045098039",
+        "comparator": "<=",
+        "threshold": "0.4",
+        "citation": "OCC final rule, 12 CFR 15.11(c)(2)(ii) (as described in the final rule preamble).",
+        "rule_verified": true,
+        "rule_notes": "The rule is \"subject to certain exceptions\" that are NOT modelled; the check applies the limit to every counterparty, so it can over-report. Exposure is measured as the sum of reserve rows per counterparty over total reserve assets. Per-institution holdings and weighted average maturity limits were dropped from the final rule.",
+        "details": {
+          "shares": {
+            "Synthetic Bank Alpha": "0.2060243296078431",
+            "Synthetic Bank Beta": "0.2112277698039216",
+            "Synthetic Bank Epsilon": "0.1924857718627451",
+            "Synthetic Custody Gamma": "0.1732514242156863",
+            "Synthetic Trust Delta": "0.2170107045098039"
+          },
+          "top_counterparty": "Synthetic Trust Delta",
+          "top_counterparty_amount": "22135091.86",
+          "total_reserves": "102000000"
+        }
+      },
+      {
+        "rule_id": "RW-RED-001",
+        "check": "redemption_timing",
+        "description": "A timely redemption may not exceed a maximum number of business days following the redemption request.",
+        "status": "pass",
+        "observed": "1",
+        "comparator": "<=",
+        "threshold": "2",
+        "citation": "OCC final rule, 12 CFR 15.12(a)(1), 15.12(a)(2), 15.12(c)(1); business day as defined in 12 CFR 15.2 (as described in the final rule preamble).",
+        "rule_verified": true,
+        "rule_notes": "Figures and definitions taken from preamble text, not the codified regulation text. \"Business day\" means any day other than a Saturday, Sunday, or Federal holiday. The counting convention, near-breach margin and handling of open, rejected and cancelled requests are owner decisions recorded above, not text from the rule.",
+        "details": {
+          "as_of": "2027-02-01T21:00:00Z",
+          "breach_amount": "0",
+          "breaches": 0,
+          "calendar": "US Federal holidays",
+          "calendar_kind": "federal",
+          "calendar_verified": false,
+          "cancelled": 0,
+          "excluded_amount": "0",
+          "max_business_days_used": 1,
+          "near_breach_margin": 1,
+          "ok": 60,
+          "open_requests": 2,
+          "rejected": 0,
+          "requests_evaluated": 60,
+          "requests_total": 60,
+          "rows_with_anomalies": 0,
+          "timezone": "America/New_York",
+          "total_amount": "15114161.51",
+          "warning_amount": "0",
+          "warnings": 0
+        }
+      }
+    ],
+    "redemption_summary": {
+      "total": 60,
+      "evaluated": 60,
+      "ok": 60,
+      "warning": 0,
+      "breach": 0,
+      "rejected": 0,
+      "cancelled": 0,
+      "open": 2,
+      "with_anomalies": 0,
+      "max_business_days_used": 1,
+      "total_amount": "15114161.51",
+      "excluded_amount": "0",
+      "warning_amount": "0",
+      "breach_amount": "0"
+    },
+    "unverified_rules": [
+      "RW-COV-001"
+    ]
+  }
+}

@@ -1,0 +1,329 @@
+package runner_test
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jegorscode/reservelint/internal/meta"
+	"github.com/jegorscode/reservelint/internal/report"
+	"github.com/jegorscode/reservelint/internal/runner"
+	"github.com/jegorscode/reservelint/internal/testutil"
+	"github.com/shopspring/decimal"
+)
+
+var update = flag.Bool("update", false, "rewrite golden files in testdata/golden")
+
+var fixedNow = time.Date(2027, 2, 1, 21, 30, 0, 0, time.UTC)
+
+// inRepoRoot makes relative paths in reports identical on every machine.
+func inRepoRoot(t *testing.T) {
+	t.Helper()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(testutil.RepoRoot()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(old) })
+}
+
+func vectorOpts(scenario string) runner.Options {
+	dir := "testdata/vectors/" + scenario
+	return runner.Options{
+		RulesPath: "rules/rules.yaml", ReservesPath: dir + "/reserves.csv", SupplyPath: dir + "/supply.csv",
+		RedemptionsPath: dir + "/redemptions.csv", Now: func() time.Time { return fixedNow },
+	}
+}
+
+func run(t *testing.T, opts runner.Options) *report.Report {
+	t.Helper()
+	rep, err := runner.Run(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rep
+}
+
+func writeFile(t *testing.T, name, text string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func sha(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+// ---- golden files ----------------------------------------------------------------------
+
+func TestGoldenReports(t *testing.T) {
+	inRepoRoot(t)
+	for _, scenario := range []string{"clean", "violations"} {
+		t.Run(scenario, func(t *testing.T) {
+			out := t.TempDir()
+			if _, err := report.Write(out, run(t, vectorOpts(scenario))); err != nil {
+				t.Fatal(err)
+			}
+			golden := filepath.Join("testdata", "golden", scenario)
+			if *update {
+				if err := os.RemoveAll(golden); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.MkdirAll(golden, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, _ := os.ReadDir(out)
+			if len(got) != 4 {
+				t.Fatalf("expected 4 output files, got %d", len(got))
+			}
+			for _, e := range got {
+				actual, _ := os.ReadFile(filepath.Join(out, e.Name()))
+				path := filepath.Join(golden, e.Name())
+				if *update {
+					if err := os.WriteFile(path, actual, 0o644); err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				want, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatalf("missing golden file (run: go test ./internal/runner -update): %v", err)
+				}
+				if !bytes.Equal(actual, want) {
+					t.Errorf("%s differs from golden file %s; if the change is intended run: go test ./internal/runner -update", e.Name(), path)
+				}
+			}
+			if !*update {
+				want, _ := os.ReadDir(golden)
+				if len(want) != len(got) {
+					t.Errorf("golden has %d files, run produced %d", len(want), len(got))
+				}
+			}
+		})
+	}
+}
+
+// ---- verdicts and exit codes -----------------------------------------------------------
+
+func TestCleanDataPassesWithCaveats(t *testing.T) {
+	inRepoRoot(t)
+	rep := run(t, vectorOpts("clean"))
+	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 4 || rep.Partial {
+		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
+	}
+	joined := strings.Join(rep.Caveats, "\n")
+	if !strings.Contains(joined, "RW-COV-001") || !strings.Contains(joined, "Holiday calendar") {
+		t.Errorf("caveats should mention the unverified rule and calendar: %v", rep.Caveats)
+	}
+	if len(rep.NotChecked) != 3 {
+		t.Errorf("expected 3 tracked-but-unchecked rules, got %+v", rep.NotChecked)
+	}
+}
+
+func TestViolationsFail(t *testing.T) {
+	inRepoRoot(t)
+	rep := run(t, vectorOpts("violations"))
+	if rep.Status != report.StatusFail || rep.ExitCode != 1 || rep.Counts.Fail != 4 {
+		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
+	}
+	if rep.Inputs[0].DuplicateCount() != 1 || rep.Inputs[0].RowsRead != 16 || rep.Inputs[0].RowsUsed != 15 {
+		t.Errorf("duplicate accounting wrong: %+v", rep.Inputs[0])
+	}
+	if rep.Redemption == nil || rep.Redemption.Summary.Breach < 2 || len(rep.Redemption.Items) == 0 {
+		t.Errorf("redemption section: %+v", rep.Redemption)
+	}
+}
+
+func TestWarningStatusFromNearBreach(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("clean")
+	opts.RedemptionsPath = writeFile(t, "red.csv",
+		"request_ts,onboarded_ts,transfer_initiated_ts,amount,status\n"+
+			"2027-01-25T15:00:00Z,,2027-01-27T15:00:00Z,100,completed\n"+ // Mon -> Wed: 2 days, warning
+			"2027-01-04T15:00:00Z,,,50,rejected\n"+
+			"2027-01-05T15:00:00Z,,,70,cancelled\n")
+	rep := run(t, opts)
+	if rep.Status != report.StatusWarning || rep.ExitCode != 0 || rep.Counts.Warning != 1 || rep.Counts.Fail != 0 {
+		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
+	}
+	s := rep.Redemption.Summary
+	if s.Rejected != 1 || s.Cancelled != 1 || s.Total != 3 || !s.ExcludedAmount.Equal(decimal.RequireFromString("120")) {
+		t.Errorf("excluded totals missing from the summary: %+v", s)
+	}
+}
+
+func TestInvalidRowsFailFastByDefault(t *testing.T) {
+	inRepoRoot(t)
+	clean, _ := os.ReadFile("testdata/vectors/clean/reserves.csv")
+	opts := vectorOpts("clean")
+	opts.ReservesPath = writeFile(t, "r.csv", string(clean)+"cash_deposit,-5,Bank X,,true\ncash_deposit,5,,,true\n")
+	_, err := runner.Run(opts)
+	var ie *runner.InputError
+	if !errors.As(err, &ie) || !strings.Contains(err.Error(), "--allow-invalid-rows") || !strings.Contains(err.Error(), "must be greater than zero") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestAllowInvalidRowsGivesPartialWarning(t *testing.T) {
+	inRepoRoot(t)
+	clean, _ := os.ReadFile("testdata/vectors/clean/reserves.csv")
+	opts := vectorOpts("clean")
+	opts.ReservesPath = writeFile(t, "r.csv", string(clean)+"cash_deposit,-5,Bank X,,true\n")
+	opts.AllowInvalidRows = true
+	rep := run(t, opts)
+	if !rep.Partial || rep.Status != report.StatusWarning || rep.ExitCode != 0 || !rep.Options.AllowInvalidRows {
+		t.Fatalf("partial=%v %s exit %d", rep.Partial, rep.Status, rep.ExitCode)
+	}
+	if len(rep.Inputs[0].InvalidRows) != 1 || rep.Inputs[0].InvalidRows[0].Position != 17 {
+		t.Errorf("invalid rows: %+v", rep.Inputs[0].InvalidRows)
+	}
+	if !strings.Contains(strings.Join(rep.Caveats, "\n"), "PARTIAL RUN") {
+		t.Errorf("caveats: %v", rep.Caveats)
+	}
+	if md := string(report.Markdown(rep)); !strings.Contains(md, "PARTIAL RUN") || !strings.Contains(md, "Invalid rows in") {
+		t.Error("markdown does not flag the partial run")
+	}
+}
+
+func TestPartialRunStillFailsOnViolations(t *testing.T) {
+	inRepoRoot(t)
+	v, _ := os.ReadFile("testdata/vectors/violations/reserves.csv")
+	opts := vectorOpts("violations")
+	opts.ReservesPath = writeFile(t, "r.csv", string(v)+"x,0,Y,,true\n")
+	opts.AllowInvalidRows = true
+	if rep := run(t, opts); rep.Status != report.StatusFail || rep.ExitCode != 1 || !rep.Partial {
+		t.Fatalf("%s exit %d partial %v", rep.Status, rep.ExitCode, rep.Partial)
+	}
+}
+
+func TestInputErrors(t *testing.T) {
+	inRepoRoot(t)
+	badRules := writeFile(t, "rules.yaml", "schema_version: 1\nrules:\n  - id: X\n    check: no_such_check\n    description: d\n    source: s\n    verified: false\n    parameters: {}\n")
+	cases := map[string]func(*runner.Options){
+		"missing reserves": func(o *runner.Options) { o.ReservesPath = "nope.csv" },
+		"missing rules":    func(o *runner.Options) { o.RulesPath = "nope.yaml" },
+		"unknown check":    func(o *runner.Options) { o.RulesPath = badRules },
+		"missing holidays": func(o *runner.Options) { o.HolidaysPath = "nope.yaml" },
+		"empty supply":     func(o *runner.Options) { o.SupplyPath = writeFile(t, "s.csv", "as_of,circulating_supply\n") },
+		"redemptions in 2030": func(o *runner.Options) {
+			o.RedemptionsPath = writeFile(t, "r.csv", "request_ts,amount,status\n2030-02-01T15:00:00Z,5,pending\n")
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			opts := vectorOpts("clean")
+			mutate(&opts)
+			_, err := runner.Run(opts)
+			var ie *runner.InputError
+			if !errors.As(err, &ie) {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}
+
+func TestAsOfOverride(t *testing.T) {
+	inRepoRoot(t)
+	opts := vectorOpts("violations")
+	at := time.Date(2027, 1, 21, 0, 0, 0, 0, time.UTC)
+	opts.AsOf = &at
+	rep := run(t, opts)
+	if !rep.AsOf.Equal(at) || rep.Options.AsOfOverride != "2027-01-21T00:00:00Z" {
+		t.Errorf("as_of %v override %q", rep.AsOf, rep.Options.AsOfOverride)
+	}
+}
+
+// ---- reproducibility and audit ---------------------------------------------------------
+
+func TestSameInputsSameReport(t *testing.T) {
+	inRepoRoot(t)
+	a, _ := report.JSON(run(t, vectorOpts("violations")))
+	b, _ := report.JSON(run(t, vectorOpts("violations")))
+	if !bytes.Equal(a, b) {
+		t.Fatal("two runs on identical inputs produced different report.json")
+	}
+}
+
+func TestAuditRecordHashesMatchFilesOnDisk(t *testing.T) {
+	inRepoRoot(t)
+	out := t.TempDir()
+	opts := vectorOpts("violations")
+	paths, err := report.Write(out, run(t, opts))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(paths.Audit) != "audit-20270201T213000Z.json" {
+		t.Errorf("audit name %s", filepath.Base(paths.Audit))
+	}
+	var audit report.Audit
+	raw, _ := os.ReadFile(paths.Audit)
+	if err := json.Unmarshal(raw, &audit); err != nil {
+		t.Fatal(err)
+	}
+	wantInputs := map[string]string{
+		"reserves": opts.ReservesPath, "supply": opts.SupplyPath, "redemptions": opts.RedemptionsPath,
+		"rules": opts.RulesPath, "holiday_calendar": "config/holidays.yaml",
+	}
+	if len(audit.Inputs) != len(wantInputs) {
+		t.Fatalf("inputs: %+v", audit.Inputs)
+	}
+	for _, in := range audit.Inputs {
+		path, ok := wantInputs[in.Role]
+		if !ok || in.Path != path || in.SHA256 != sha(t, path) {
+			t.Errorf("input %s: recorded %s %s, disk %s", in.Role, in.Path, in.SHA256, sha(t, path))
+		}
+	}
+	if len(audit.Outputs) != 3 {
+		t.Fatalf("outputs: %+v", audit.Outputs)
+	}
+	for _, o := range audit.Outputs {
+		if o.SHA256 != sha(t, filepath.Join(out, o.Path)) {
+			t.Errorf("output %s hash does not match the file", o.Path)
+		}
+	}
+	if audit.ToolVersion == "" || audit.Result.Status != report.StatusFail || audit.Result.ExitCode != 1 ||
+		len(audit.Result.Findings) != 4 || audit.Result.Redemption == nil || len(audit.Result.Unverified) != 1 {
+		t.Errorf("audit result: %+v", audit.Result)
+	}
+	if !audit.Timestamp.Equal(fixedNow) || !strings.Contains(audit.Disclaimer, "Not legal advice") {
+		t.Errorf("timestamp/disclaimer: %v %q", audit.Timestamp, audit.Disclaimer)
+	}
+}
+
+func TestEveryOutputCarriesTheDisclaimer(t *testing.T) {
+	inRepoRoot(t)
+	out := t.TempDir()
+	paths, err := report.Write(out, run(t, vectorOpts("clean")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	md, _ := os.ReadFile(paths.Markdown)
+	if strings.Count(string(md), meta.Disclaimer) < 2 || !strings.HasPrefix(string(md), "# reservelint report\n\n> "+meta.Disclaimer) {
+		t.Error("markdown should open and close with the disclaimer")
+	}
+	for _, p := range []string{paths.JSON, paths.Audit} {
+		if data, _ := os.ReadFile(p); !strings.Contains(string(data), meta.Disclaimer) {
+			t.Errorf("%s lacks the disclaimer", p)
+		}
+	}
+}
