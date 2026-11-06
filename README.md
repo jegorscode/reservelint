@@ -153,5 +153,5 @@ go test -race ./...                 # needs cgo (a C compiler); CI runs it on Li
 go test ./internal/runner -update   # after an intended report format change; review the diff
 ```
 
-CI (GitHub Actions) runs vet and tests on Linux, Windows and macOS (plus the race detector on
-Linux), cross-builds the same six platform targets, and checks that the shared test vectors still match the Python prototype.
+CI (GitHub Actions) runs vet and tests on Linux and Windows (plus the race detector on
+Linux), cross-compiles all six platform targets (including macOS), and checks that the shared test vectors still match the Python prototype.

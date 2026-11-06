@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest] # macOS binaries are cross-compiled in cross-build
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
