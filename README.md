@@ -6,8 +6,10 @@ An open-source, auditable CLI that checks stablecoin issuer reserve data against
 defined in `rules/rules.yaml` and produces reports. Written in Go: one static binary, no
 runtime to install.
 
-**Status: Go rewrite, Phase 1.** Models, the rules loader, a synthetic data generator and a
-minimal CLI exist. Ingestion, checks, calendar, reports and the audit log come in later phases.
+**Status: Go rewrite, Phase 2.** Models, rules loader, ingestion with dedupe, the coverage,
+liquidity and concentration checks, a synthetic data generator and a
+minimal CLI exist (checks are not wired into the CLI until Phase 4). Calendar, redemption
+timing, reports and the audit log come later.
 The Python prototype (ingestion and reserve checks) lives in [legacy-python/](legacy-python/)
 and is used only to cross-check the Go code.
 
@@ -26,7 +28,8 @@ and is used only to cross-check the Go code.
 | `internal/rules`, `internal/config` | rule schema; file loading and SHA-256 hashing |
 | `internal/synthetic` | seeded sample data with deliberate violations |
 | `internal/cli` | cobra commands |
-| `internal/ingest`, `engine`, `calendar`, `report` | planned (Phases 2 to 4) |
+| `internal/ingest`, `internal/engine` | CSV/JSON loading with dedupe; reserve checks |
+| `internal/calendar`, `internal/report` | planned (Phases 3 and 4) |
 | `testdata/vectors` | shared vectors exported from the Python prototype |
 
 ## Try it

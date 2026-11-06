@@ -207,9 +207,9 @@ func (r ReserveRow) RowKey() string {
 		maturity = r.MaturityDate.Format(dateLayout)
 	}
 	return hashKey(map[string]any{
-		"asset_type":               normText(r.AssetType),
+		"asset_type":               NormText(r.AssetType),
 		"amount":                   r.Amount.String(),
-		"counterparty":             normText(r.Counterparty),
+		"counterparty":             NormText(r.Counterparty),
 		"maturity_date":            maturity,
 		"is_immediately_available": r.IsImmediatelyAvailable,
 	})

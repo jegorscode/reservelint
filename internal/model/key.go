@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-func normText(s string) string {
+// NormText trims, collapses whitespace and lower-cases s; used for identity comparisons.
+func NormText(s string) string {
 	return strings.ToLower(strings.Join(strings.Fields(s), " "))
 }
 
