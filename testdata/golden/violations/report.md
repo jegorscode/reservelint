@@ -79,7 +79,7 @@ A timely redemption may not exceed a maximum number of business days following t
 - breaches: 10
 - calendar: US Federal holidays
 - calendar_kind: federal
-- calendar_verified: false
+- calendar_verified: true
 - cancelled: 0
 - excluded_amount: 0
 - max_business_days_used: 8
@@ -178,7 +178,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
 | testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
 | rules/rules.yaml | rules | `f8774d1f1de2b2a979ea283e950ff39cdb4662a8d87a6836d153a09b4d483645` | | | | | |
-| config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
+| config/holidays.yaml | holiday calendar | `b0c79764a7b1173d5b16ee9ea764424bb9b9ce65a00142ea6b905e775b2dd9d4` | | | | | |
 
 Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
 
@@ -190,10 +190,6 @@ Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv
 - RW-RPT-001: Publish the monthly composition of reserves on the issuer's website by noon on the last day of each month, in a format substantially similar to Table 1 to 15.11(e). (no check implemented)
 - RW-RPT-002: Have the previous month-end composition report examined by a registered public accounting firm and published with it, and submit a monthly CEO and CFO accuracy certification to the OCC. (no check implemented)
 - RW-NOT-001: Notify the OCC on any day reserve assets fall below the minimum; stop new issuance until restored; begin liquidation and redemption after 15 consecutive business days below it. (no check implemented)
-
-## Caveats
-
-- Holiday calendar "US Federal holidays" is not verified against an official schedule; business-day counts depend on it.
 
 ---
 Monitoring and reporting aid. Not legal advice. Not an official OCC form.

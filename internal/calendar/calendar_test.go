@@ -104,9 +104,9 @@ func TestShippedFileMatchesIndependentDerivation(t *testing.T) {
 	}
 }
 
-func TestShippedFileIsMarkedUnverified(t *testing.T) {
+func TestShippedFileIsVerifiedFederal(t *testing.T) {
 	c := shipped(t)
-	if c.Verified || c.Kind != "federal" {
+	if !c.Verified || c.Kind != "federal" {
 		t.Fatalf("verified=%v kind=%s", c.Verified, c.Kind)
 	}
 	if from, to := c.Coverage(); from.String() != "2026-01-01" || to.String() != "2027-12-31" {

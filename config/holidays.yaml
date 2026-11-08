@@ -11,17 +11,19 @@
 # `covers` is the date range this file is authoritative for. Dates outside it are an
 # error, never silently treated as business days.
 #
-# verified: false. Compiled from 5 U.S.C. 6103(a) by the tool author, not copied from an
-# official publication. The owner must compare it with the OPM schedule before relying on it.
+# verified: true. All 23 observed dates below were compared with the OPM "Federal Holidays"
+# schedules for 2026, 2027 and 2028 on 2026-11-08 and match exactly. The dates in this file
+# cover a limited range (see `covers`); extend and re-verify it before it runs out.
 schema_version: 1
 name: US Federal holidays
 kind: federal
-source: "5 U.S.C. 6103(a); OPM Federal holiday schedule (owner to confirm)"
-verified: false
+source: "5 U.S.C. 6103(a); OPM Federal Holidays schedule, https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/ (compared 2026-11-08)"
+verified: true
 notes: >-
-  A holiday on a Saturday is observed the preceding Friday; on a Sunday, the following
-  Monday. New Year's Day 2028 (Saturday) is observed Friday 2027-12-31, inside this range.
-  The Federal Reserve does not observe that Friday closure, so a Fedwire file would differ.
+  A holiday on a Saturday is observed the preceding Friday (5 U.S.C. 6103(b)); on a Sunday, the
+  following Monday (Executive Order 11582). New Year's Day 2028 (Saturday) is observed Friday
+  2027-12-31, inside this range. This is the Federal employee holiday schedule, not the Federal
+  Reserve's: the Federal Reserve does not observe that Friday closure, so a Fedwire file would differ.
 covers:
   from: "2026-01-01"
   to: "2027-12-31"

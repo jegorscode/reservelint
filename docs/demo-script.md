@@ -30,7 +30,8 @@ Expected first line: `PASS: 0 fail, 0 warning, 6 pass`. Exit code 0
 
 Open `demo/report-clean/report.md` and point at:
 - the findings table: rule id, observed value, requirement, and whether the rule is verified;
-- the **Caveats** section: it states what the tool cannot vouch for (here, the unverified holiday calendar);
+- the absence of a **Caveats** section on a clean run: when a rule or the holiday calendar is
+  unverified, or a run is partial, the report says so there;
 - the disclaimer at the top and bottom.
 
 ## 2. A run with problems (about 2 minutes)

@@ -62,10 +62,10 @@
   },
   "holiday_calendar": {
     "path": "config/holidays.yaml",
-    "sha256": "1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137",
+    "sha256": "b0c79764a7b1173d5b16ee9ea764424bb9b9ce65a00142ea6b905e775b2dd9d4",
     "name": "US Federal holidays",
     "kind": "federal",
-    "verified": false,
+    "verified": true,
     "timezone": "America/New_York",
     "coverage_from": "2026-01-01",
     "coverage_to": "2027-12-31"
@@ -150,7 +150,7 @@
         "breaches": 10,
         "calendar": "US Federal holidays",
         "calendar_kind": "federal",
-        "calendar_verified": false,
+        "calendar_verified": true,
         "cancelled": 0,
         "excluded_amount": "0",
         "max_business_days_used": 8,
@@ -467,7 +467,5 @@
       "reason": "no check implemented"
     }
   ],
-  "caveats": [
-    "Holiday calendar \"US Federal holidays\" is not verified against an official schedule; business-day counts depend on it."
-  ]
+  "caveats": []
 }

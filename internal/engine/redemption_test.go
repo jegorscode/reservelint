@@ -262,8 +262,8 @@ func TestShippedRuleDrivesTheCheck(t *testing.T) {
 	if err != nil || r.Finding.Passed || !r.Finding.RuleVerified || r.Finding.RuleID != "RW-RED-001" {
 		t.Fatalf("%v %+v", err, r.Finding)
 	}
-	if r.Finding.Details["calendar_verified"] != false {
-		t.Error("finding should expose that the calendar is unverified")
+	if r.Finding.Details["calendar_verified"] != true {
+		t.Error("finding should expose that the shipped calendar is verified")
 	}
 }
 

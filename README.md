@@ -8,7 +8,7 @@ one static binary, no runtime to install.
 
 This tool does not determine legal compliance. A PASS means the supplied data met the
 thresholds in the rules file, nothing more. Rules with `verified: false` only ever
-WARN, and the holiday calendar is unverified; reports say so. Synthetic data only: no real customer data
+WARN, and a calendar marked unverified is flagged as a caveat; reports say so. Synthetic data only: no real customer data
 belongs in this repository.
 
 ## Install and run
@@ -125,7 +125,7 @@ an exact repeat is dropped and reported.
 - Identical reserve rows without a `holding_id` are kept (and warned about), so accidental repeats
   can overstate reserves until a `holding_id` is supplied; that is the cautious trade-off against
   merging real positions and understating reserves.
-- Holiday calendar covers 2026–2027 and is unverified.
+- The holiday calendar covers 2026–2027 only (later dates are an error). It was compared with OPM's Federal holiday schedule on 2026-11-08 and matches; it is the Federal employee schedule, not Fedwire's.
 - Operational capability, the monthly composition report and certification, and the 15.11(g) notification and 15-day liquidation duties are tracked but not checked (the last needs daily history).
 - Out of scope: AML/sanctions checks, a UI, blockchain RPC calls (supply comes from a file).
 

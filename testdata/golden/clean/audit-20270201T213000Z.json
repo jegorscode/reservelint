@@ -32,14 +32,14 @@
     {
       "role": "holiday_calendar",
       "path": "config/holidays.yaml",
-      "sha256": "1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137"
+      "sha256": "b0c79764a7b1173d5b16ee9ea764424bb9b9ce65a00142ea6b905e775b2dd9d4"
     }
   ],
   "outputs": [
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "54379bdcb785f7652dd13ed2b7029b7e7cdd95993abbaf64fcfe41b31ce79bf0"
+      "sha256": "70bf807b27faa588c74b28f921602ea667388748fa2d0ad4c991dfbaadcc4a79"
     },
     {
       "role": "findings.csv",
@@ -49,7 +49,7 @@
     {
       "role": "report.json",
       "path": "report.json",
-      "sha256": "d595f685b6a41727aaeed721912480c9cea4841d32801d635c50cabe7c742239"
+      "sha256": "b7e42c88903a2f58547fa8a552b36542794d0faf40802325045315bb4e89116a"
     }
   ],
   "result": {
@@ -141,7 +141,7 @@
           "breaches": 0,
           "calendar": "US Federal holidays",
           "calendar_kind": "federal",
-          "calendar_verified": false,
+          "calendar_verified": true,
           "cancelled": 0,
           "excluded_amount": "0",
           "max_business_days_used": 1,

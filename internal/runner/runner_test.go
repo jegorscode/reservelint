@@ -126,15 +126,31 @@ func TestGoldenReports(t *testing.T) {
 
 // ---- verdicts and exit codes -----------------------------------------------------------
 
-func TestCleanDataPassesWithCaveats(t *testing.T) {
+func TestUnverifiedCalendarIsACaveat(t *testing.T) {
+	inRepoRoot(t)
+	data, err := os.ReadFile("config/holidays.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := vectorOpts("clean")
+	opts.HolidaysPath = writeFile(t, "holidays.yaml", strings.Replace(string(data), "\nverified: true\n", "\nverified: false\n", 1))
+	rep := run(t, opts)
+	if rep.Calendar.Verified || len(rep.Caveats) != 1 || !strings.Contains(rep.Caveats[0], "Holiday calendar") {
+		t.Fatalf("calendar verified=%v caveats=%v", rep.Calendar.Verified, rep.Caveats)
+	}
+	if rep.Status != report.StatusPass {
+		t.Errorf("an unverified calendar is a caveat, not a failure: %s", rep.Status)
+	}
+}
+
+func TestCleanDataPassesWithNoCaveats(t *testing.T) {
 	inRepoRoot(t)
 	rep := run(t, vectorOpts("clean"))
 	if rep.Status != report.StatusPass || rep.ExitCode != 0 || rep.Counts.Pass != 6 || rep.Partial {
 		t.Fatalf("%s exit %d counts %+v", rep.Status, rep.ExitCode, rep.Counts)
 	}
-	joined := strings.Join(rep.Caveats, "\n")
-	if strings.Contains(joined, "RW-") || !strings.Contains(joined, "Holiday calendar") {
-		t.Errorf("only the unverified calendar should be a caveat: %v", rep.Caveats)
+	if len(rep.Caveats) != 0 {
+		t.Errorf("every shipped rule and the shipped calendar are verified, so there should be no caveats: %v", rep.Caveats)
 	}
 	if len(rep.NotChecked) != 4 {
 		t.Errorf("expected 4 tracked-but-unchecked rules, got %+v", rep.NotChecked)
