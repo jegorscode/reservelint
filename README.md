@@ -153,6 +153,9 @@ an exact repeat is dropped and reported.
 go vet ./... && go test ./...
 go test -race ./...                 # needs cgo (a C compiler); CI runs it on Linux
 go test ./internal/runner -update   # after an intended report format change; review the diff
+# Windows PowerShell: run the built binary against 30 hand-checked scenarios (exact limits, bad rows,
+# holidays, ...) and print expected versus actual. See scripts/run-scenarios.ps1.
+.\scripts\run-scenarios.ps1 -Exe .\reservelint.exe
 ```
 
 CI (GitHub Actions) runs vet and tests on Linux and Windows (plus the race detector on
