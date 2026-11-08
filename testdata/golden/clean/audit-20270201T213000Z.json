@@ -27,7 +27,7 @@
     {
       "role": "rules",
       "path": "rules/rules.yaml",
-      "sha256": "8462938f45b3debbe47012c9a94059c53253d4a4faa695f4040f144cd088296c"
+      "sha256": "f8774d1f1de2b2a979ea283e950ff39cdb4662a8d87a6836d153a09b4d483645"
     },
     {
       "role": "holiday_calendar",
@@ -39,7 +39,7 @@
     {
       "role": "report.md",
       "path": "report.md",
-      "sha256": "b47bce111eaa714dda31155742277afdb3aecdb45e62ea9a49d9d4908f7de611"
+      "sha256": "54379bdcb785f7652dd13ed2b7029b7e7cdd95993abbaf64fcfe41b31ce79bf0"
     },
     {
       "role": "findings.csv",
@@ -49,7 +49,7 @@
     {
       "role": "report.json",
       "path": "report.json",
-      "sha256": "bd95f280b9c54ab48f4ea72c032935ba3f53790eff2a4e506f3c72d4b63bb7cb"
+      "sha256": "d595f685b6a41727aaeed721912480c9cea4841d32801d635c50cabe7c742239"
     }
   ],
   "result": {

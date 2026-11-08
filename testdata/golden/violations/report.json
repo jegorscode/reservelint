@@ -58,7 +58,7 @@
   ],
   "rules_file": {
     "path": "rules/rules.yaml",
-    "sha256": "8462938f45b3debbe47012c9a94059c53253d4a4faa695f4040f144cd088296c"
+    "sha256": "f8774d1f1de2b2a979ea283e950ff39cdb4662a8d87a6836d153a09b4d483645"
   },
   "holiday_calendar": {
     "path": "config/holidays.yaml",

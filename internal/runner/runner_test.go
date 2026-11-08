@@ -141,6 +141,28 @@ func TestCleanDataPassesWithCaveats(t *testing.T) {
 	}
 }
 
+// Reports record the SHA-256 of their input files, so the golden files only match on every
+// machine if those files have Unix line endings (.gitattributes enforces this on checkout, but a
+// tool that rewrites a file locally with Windows endings would change its hash and break CI).
+func TestHashedInputsHaveUnixLineEndings(t *testing.T) {
+	root := testutil.RepoRoot()
+	files := []string{"rules/rules.yaml", "config/holidays.yaml"}
+	for _, scenario := range []string{"clean", "violations"} {
+		for _, name := range []string{"reserves", "supply", "redemptions"} {
+			files = append(files, "testdata/vectors/"+scenario+"/"+name+".csv")
+		}
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(data, []byte("\r")) {
+			t.Errorf("%s contains carriage returns; convert it with: sed -i 's/\\r$//' %s", f, f)
+		}
+	}
+}
+
 // The generator's "clean" scenario must be clean under the shipped rules for any seed, and its
 // "violations" scenario must fail: this is what the demo shows.
 func TestGeneratedScenariosBehaveAsAdvertised(t *testing.T) {

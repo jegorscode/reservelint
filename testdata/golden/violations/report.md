@@ -177,7 +177,7 @@ Requests needing attention (clock start is the later of request and onboarding; 
 | testdata/vectors/violations/reserves.csv | reserves | `7fe704a749021ce5352f0966623253b34b77b50c04cd406a959bf03346869fbf` | 16 | 16 | 0 | 1 | 0 |
 | testdata/vectors/violations/supply.csv | supply | `64bd41611f30bb5e27a83f783541ebefe8b883e68f29fcc3787d369180862bb3` | 1 | 1 | 0 | 0 | 0 |
 | testdata/vectors/violations/redemptions.csv | redemptions | `6a83340d04ad78b9b031654b9494d2807e6302946c7675caef90a419cf4c4fa2` | 60 | 60 | 0 | 0 | 0 |
-| rules/rules.yaml | rules | `8462938f45b3debbe47012c9a94059c53253d4a4faa695f4040f144cd088296c` | | | | | |
+| rules/rules.yaml | rules | `f8774d1f1de2b2a979ea283e950ff39cdb4662a8d87a6836d153a09b4d483645` | | | | | |
 | config/holidays.yaml | holiday calendar | `1e25d093645d8ca19aa710cc0ae78fff4d4059587d829e183caf803ffe463137` | | | | | |
 
 Identical rows without a holding_id in `testdata/vectors/violations/reserves.csv` (kept as separate positions and counted):
