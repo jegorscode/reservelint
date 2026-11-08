@@ -10,3 +10,4 @@ data/synthetic/
 bin/
 legacy-python/.venv/
 *.exe
+/notes/

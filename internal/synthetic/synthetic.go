@@ -118,7 +118,8 @@ func buildRedemptions(r *rand.Rand, violations bool) []model.RedemptionRow {
 		// Causality: onboarding strictly precedes the request, which strictly precedes any
 		// transfer (delays below are at least an hour, onboarding at least a day earlier).
 		onboarded := request.Add(-days(uniform(r, 1, 400)))
-		delay := days(uniform(r, 0.05, 1.2))
+		// Under a day, so a transfer is never more than one business day after the request date.
+		delay := days(uniform(r, 0.05, 0.9))
 		stuck := false
 		if violations && i%7 == 3 {
 			delay = days(uniform(r, 4, 9))
@@ -133,7 +134,7 @@ func buildRedemptions(r *rand.Rand, violations bool) []model.RedemptionRow {
 		row := model.RedemptionRow{
 			RequestTS:   request,
 			OnboardedTS: &onboarded,
-			Amount:      money(10_000*100 + r.Int64N(50_000_000*100-10_000*100)),
+			Amount:      money(10_000 + r.Int64N(50_000_000-10_000)), // $100.00 to $500,000.00, in cents
 			Status:      model.StatusCompleted,
 		}
 		if pending {

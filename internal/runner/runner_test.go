@@ -16,6 +16,7 @@ import (
 	"github.com/jegorscode/reservelint/internal/meta"
 	"github.com/jegorscode/reservelint/internal/report"
 	"github.com/jegorscode/reservelint/internal/runner"
+	"github.com/jegorscode/reservelint/internal/synthetic"
 	"github.com/jegorscode/reservelint/internal/testutil"
 	"github.com/shopspring/decimal"
 )
@@ -137,6 +138,31 @@ func TestCleanDataPassesWithCaveats(t *testing.T) {
 	}
 	if len(rep.NotChecked) != 4 {
 		t.Errorf("expected 4 tracked-but-unchecked rules, got %+v", rep.NotChecked)
+	}
+}
+
+// The generator's "clean" scenario must be clean under the shipped rules for any seed, and its
+// "violations" scenario must fail: this is what the demo shows.
+func TestGeneratedScenariosBehaveAsAdvertised(t *testing.T) {
+	inRepoRoot(t)
+	for seed := int64(1); seed <= 15; seed++ {
+		dir := t.TempDir()
+		if _, err := synthetic.Generate(dir, seed, synthetic.CSV); err != nil {
+			t.Fatal(err)
+		}
+		for scenario, want := range map[string]report.Status{"clean": report.StatusPass, "violations": report.StatusFail} {
+			opts := vectorOpts("clean")
+			opts.ReservesPath = filepath.Join(dir, scenario, "reserves.csv")
+			opts.SupplyPath = filepath.Join(dir, scenario, "supply.csv")
+			opts.RedemptionsPath = filepath.Join(dir, scenario, "redemptions.csv")
+			rep := run(t, opts)
+			if rep.Status != want {
+				t.Errorf("seed %d %s: %s, want %s (counts %+v)", seed, scenario, rep.Status, want, rep.Counts)
+			}
+			if scenario == "violations" && rep.Counts.Fail != 4 {
+				t.Errorf("seed %d violations: %d failing rules, want 4 (coverage, liquidity, concentration, redemption timing)", seed, rep.Counts.Fail)
+			}
+		}
 	}
 }
 
